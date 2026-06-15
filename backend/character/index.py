@@ -22,7 +22,7 @@ def _openai(path: str, payload: dict) -> dict:
 
 
 def handler(event: dict, context) -> dict:
-    '''Создаёт внутреннего персонажа по ответам интервью: текстовое описание через ИИ и изображение.'''
+    '''Создаёт сказочного внутреннего персонажа по ответам интервью.'''
     method = event.get('httpMethod', 'GET')
     cors = {
         'Access-Control-Allow-Origin': '*',
@@ -41,45 +41,67 @@ def handler(event: dict, context) -> dict:
 
     qa_text = '\n'.join(f'- {a.get("q", "")}: {a.get("a", "")}' for a in answers)
 
-    system_prompt = (
-        'Ты — мудрый и тёплый проводник в приложении Диагномика. '
-        'По ответам человека на интервью создай его внутреннего персонажа, '
-        'отражающего состояние Души, Ума и Тела. Отвечай ТОЛЬКО валидным JSON без markdown. '
-        'Формат: {"name": "имя персонажа", "title": "короткий титул", '
-        '"description": "2-3 предложения образа", '
-        '"soul": "состояние Души 2-4 слова", "soul_level": число 0-100, '
-        '"mind": "состояние Ума 2-4 слова", "mind_level": число 0-100, '
-        '"body": "состояние Тела 2-4 слова", "body_level": число 0-100, '
-        '"strength": "сильная сторона 2-3 слова", '
-        '"need": "скрытая потребность 2-3 слова", '
-        '"story": "короткая тёплая история 2 предложения", '
-        '"task": "одно простое задание на день", '
-        '"image_prompt": "детальный prompt НА АНГЛИЙСКОМ для генерации изображения персонажа, '
-        'fairy-tale realistic style, soft warm light, no text"}'
-    )
+    system_prompt = """Ты — Архитектор образа жизни в мире Диагномики.
+Твоя задача — по ответам человека создать его уникального внутреннего персонажа.
+Это не тест и не диагноз. Это живой сказочный образ — отражение его Души, Ума и Тела прямо сейчас.
+
+Правила создания персонажа:
+— Имя должно быть красивым, тёплым, немного сказочным (например: Лира, Солм, Ирэй, Тавас, Дорин, Асем, Велар)
+— Титул — поэтический, 2-4 слова (например: «Страж тихого света», «Искатель верного пути»)
+— Описание — 2-3 живых предложения, как будто ты видишь этого персонажа перед собой. Без клише. Образно и тепло.
+— Состояния Души, Ума, Тела — честные, но добрые формулировки (2-4 слова каждое)
+— Уровни 0-100 — отражают реальное состояние из ответов, не всегда высокие
+— Сила — то, что уже есть в человеке прямо сейчас
+— Потребность — то, чего душа просит в тихий момент
+— История — маленькая поэтичная зарисовка (2 предложения), как будто ты описываешь сцену из сказки про этого персонажа
+— Задание дня — одно конкретное маленькое действие, которое этот персонаж мог бы сделать сегодня. Тёплое, простое, выполнимое.
+— image_prompt — детальный prompt на АНГЛИЙСКОМ для DALL-E 3. Стиль: fairy-tale digital art, cinematic warm lighting, bokeh background, highly detailed character portrait, full body or half-body, magical atmosphere, no text, no watermark. Опиши внешность персонажа конкретно: одежда, цвета, выражение лица, окружение.
+
+Отвечай ТОЛЬКО валидным JSON без markdown и пояснений.
+
+Формат ответа:
+{
+  "name": "имя",
+  "title": "титул",
+  "description": "описание образа",
+  "soul": "состояние Души",
+  "soul_level": 75,
+  "mind": "состояние Ума",
+  "mind_level": 60,
+  "body": "состояние Тела",
+  "body_level": 55,
+  "strength": "сильная сторона",
+  "need": "скрытая потребность",
+  "story": "поэтичная история персонажа",
+  "task": "задание дня",
+  "greeting": "первые слова персонажа при знакомстве — тёплое личное обращение к человеку (2-3 предложения от первого лица персонажа)",
+  "image_prompt": "detailed English prompt for DALL-E 3"
+}"""
 
     chat = _openai('chat/completions', {
-        'model': 'gpt-4o-mini',
+        'model': 'gpt-4o',
         'messages': [
             {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': f'Ответы интервью:\n{qa_text}'},
+            {'role': 'user', 'content': f'Ответы человека на интервью:\n{qa_text}'},
         ],
-        'temperature': 0.9,
+        'temperature': 1.0,
         'response_format': {'type': 'json_object'},
     })
 
     character = json.loads(chat['choices'][0]['message']['content'])
 
-    image_url = ''
     img = _openai('images/generations', {
         'model': 'dall-e-3',
-        'prompt': character.get('image_prompt', 'a calm inner spirit character, fairy-tale realistic, soft warm light'),
+        'prompt': (
+            character.get('image_prompt', '') +
+            ' Style: fairy-tale digital art, cinematic warm golden light, magical bokeh, '
+            'highly detailed, painterly, no text, no watermark, vertical portrait composition'
+        ),
         'n': 1,
         'size': '1024x1024',
         'response_format': 'b64_json',
     })
-    img_b64 = img['data'][0]['b64_json']
-    img_bytes = base64.b64decode(img_b64)
+    img_bytes = base64.b64decode(img['data'][0]['b64_json'])
 
     s3 = boto3.client(
         's3',

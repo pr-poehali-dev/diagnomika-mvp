@@ -39,6 +39,7 @@ type Character = {
   body: string; body_level: number;
   strength: string; need: string; story: string;
   task: string; image_url: string;
+  greeting?: string;
 };
 
 type JourneyEntry = { day_number: number; title: string; text: string; task_date: string };
@@ -529,30 +530,49 @@ const Index = () => {
                   </div>
                 </div>
 
-                {/* Слова Happy */}
-                <div className="mt-8 rounded-3xl border border-border bg-card/80 p-6 backdrop-blur-sm shadow-sm text-center">
-                  <p className="font-display text-xl leading-relaxed md:text-2xl">
-                    Теперь нас двое.
-                  </p>
-                  <p className="mt-3 text-base leading-relaxed text-foreground/70">
-                    Я представляю путь Артёма.<br />
-                    А рядом появился твой собственный проводник.
-                  </p>
-                  <p className="mt-3 text-base leading-relaxed text-foreground/70">
-                    С этого момента он будет идти рядом с тобой.
-                  </p>
-                  <div className="mt-5 h-px w-16 mx-auto bg-border" />
-                  <p className="mt-5 text-sm italic text-muted-foreground">
-                    Happy — первый проводник в мир Диагномики.<br />
-                    <span className="text-accent font-medium not-italic">{character?.name || 'Твой персонаж'}</span> — теперь твой главный герой.
-                  </p>
-                  <button
-                    onClick={() => setHappySaid(true)}
-                    className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-7 py-3 text-sm font-medium text-primary-foreground transition-all hover:opacity-90 hover:scale-[1.02]"
-                  >
-                    Начать путешествие
-                    <Icon name="ArrowRight" size={16} />
-                  </button>
+                {/* Слова Happy + первое приветствие персонажа */}
+                <div className="mt-8 space-y-4">
+
+                  {/* Happy говорит */}
+                  <div className="flex items-end gap-3">
+                    <img src={HAPPY_IMG} alt="Happy" className="w-10 h-10 flex-shrink-0 object-contain drop-shadow-md" />
+                    <div className="rounded-3xl rounded-bl-none border border-border bg-card/80 px-5 py-4 backdrop-blur-sm shadow-sm">
+                      <p className="text-sm font-medium text-amber-600 mb-1">Happy</p>
+                      <p className="text-base leading-relaxed">
+                        Теперь нас двое.<br />
+                        Я представляю путь Артёма.<br />
+                        А рядом появился твой собственный проводник.<br />
+                        С этого момента он будет идти рядом с тобой.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Персонаж говорит впервые */}
+                  <div className="flex items-end gap-3 justify-end">
+                    <div className="rounded-3xl rounded-br-none border border-accent/30 bg-accent/10 px-5 py-4 shadow-sm max-w-sm">
+                      <p className="text-sm font-medium text-accent mb-1">{character?.name}</p>
+                      <p className="text-base leading-relaxed italic text-foreground/80">
+                        {character?.greeting || `Я здесь. Я всегда был внутри тебя — просто ждал, когда ты захочешь услышать.`}
+                      </p>
+                    </div>
+                    <img src={charImg} alt={character?.name}
+                      className="w-10 h-10 flex-shrink-0 rounded-xl object-cover ring-2 ring-accent/30 shadow-md" />
+                  </div>
+
+                  {/* Кнопка */}
+                  <div className="pt-2 text-center">
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Happy — первый проводник в мир Диагномики &nbsp;·&nbsp;{' '}
+                      <span className="text-accent">{character?.name}</span> — теперь твой главный герой
+                    </p>
+                    <button
+                      onClick={() => setHappySaid(true)}
+                      className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 text-sm font-medium text-primary-foreground transition-all hover:opacity-90 hover:scale-[1.02] shadow-lg"
+                    >
+                      Начать путешествие
+                      <Icon name="ArrowRight" size={16} />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
