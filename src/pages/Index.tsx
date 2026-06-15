@@ -494,31 +494,64 @@ const Index = () => {
         {view === 'profile' && (
           <section className="pt-6">
 
-            {/* Happy прощается — только если ещё не попрощался */}
+            {/* Сцена встречи двух проводников */}
             {!happySaid && (
-              <div className="mx-auto mb-10 flex max-w-3xl items-end gap-4 animate-fade-in">
-                <div className="relative w-24 flex-shrink-0 md:w-32"
-                  style={{ transition: 'opacity 0.8s, transform 0.8s' }}>
-                  <div className="absolute inset-0 rounded-full bg-amber-300/30 blur-2xl animate-breathe" />
-                  <img src={HAPPY_IMG} alt="Happy" className="relative w-full drop-shadow-xl"
-                    style={{ filter: 'drop-shadow(0 0 16px rgba(251,191,36,0.35))' }} />
+              <div className="mx-auto mb-12 max-w-3xl animate-fade-in">
+
+                {/* Два персонажа лицом к лицу */}
+                <div className="flex items-end justify-center gap-6 md:gap-10">
+
+                  {/* Happy слева */}
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="relative w-28 md:w-36">
+                      <div className="absolute inset-0 rounded-full bg-amber-300/30 blur-2xl animate-breathe" />
+                      <img src={HAPPY_IMG} alt="Happy" className="relative w-full drop-shadow-xl"
+                        style={{ filter: 'drop-shadow(0 0 20px rgba(251,191,36,0.4))' }} />
+                    </div>
+                    <span className="text-xs text-muted-foreground tracking-wide">Happy</span>
+                  </div>
+
+                  {/* Искры встречи по центру */}
+                  <div className="flex flex-col items-center gap-1 pb-8">
+                    <div className="text-2xl animate-breathe">✨</div>
+                    <div className="h-px w-12 bg-gradient-to-r from-amber-300/0 via-amber-300/60 to-accent/0" />
+                  </div>
+
+                  {/* Персонаж пользователя справа */}
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="relative w-28 md:w-36">
+                      <div className="absolute inset-0 rounded-full bg-accent/20 blur-2xl animate-breathe" />
+                      <img src={charImg} alt={character?.name}
+                        className="relative w-full aspect-square rounded-2xl object-cover shadow-xl ring-2 ring-accent/30"
+                        style={{ filter: 'drop-shadow(0 0 16px rgba(var(--accent)/0.4))' }} />
+                    </div>
+                    <span className="text-xs text-muted-foreground tracking-wide">{character?.name || 'Твой персонаж'}</span>
+                  </div>
                 </div>
-                <div className="relative flex-1 rounded-3xl rounded-bl-none border border-border bg-card/80 p-5 shadow-sm backdrop-blur-sm">
-                  <div className="absolute -bottom-3 left-5 h-4 w-4 rotate-45 border-b border-l border-border bg-card/80" />
-                  <p className="font-display text-lg leading-snug md:text-xl">
-                    Вот он! Познакомься — это{' '}
-                    <span className="text-accent font-semibold">{character?.name || 'твой персонаж'}</span>.
-                    Я чувствовал его с самого начала нашего разговора. ✨
+
+                {/* Слова Happy */}
+                <div className="mt-8 rounded-3xl border border-border bg-card/80 p-6 backdrop-blur-sm shadow-sm text-center">
+                  <p className="font-display text-xl leading-relaxed md:text-2xl">
+                    Теперь нас двое.
                   </p>
-                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                    Моя миссия выполнена. Дальше он поведёт тебя сам — это его путь, и только твой.
-                    Удачи! Я буду рядом, если понадоблюсь снова 👋
+                  <p className="mt-3 text-base leading-relaxed text-foreground/70">
+                    Я представляю путь Артёма.<br />
+                    А рядом появился твой собственный проводник.
+                  </p>
+                  <p className="mt-3 text-base leading-relaxed text-foreground/70">
+                    С этого момента он будет идти рядом с тобой.
+                  </p>
+                  <div className="mt-5 h-px w-16 mx-auto bg-border" />
+                  <p className="mt-5 text-sm italic text-muted-foreground">
+                    Happy — первый проводник в мир Диагномики.<br />
+                    <span className="text-accent font-medium not-italic">{character?.name || 'Твой персонаж'}</span> — теперь твой главный герой.
                   </p>
                   <button
                     onClick={() => setHappySaid(true)}
-                    className="mt-4 rounded-full bg-accent/10 px-5 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/20"
+                    className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-7 py-3 text-sm font-medium text-primary-foreground transition-all hover:opacity-90 hover:scale-[1.02]"
                   >
-                    Спасибо, Happy! До встречи →
+                    Начать путешествие
+                    <Icon name="ArrowRight" size={16} />
                   </button>
                 </div>
               </div>
