@@ -93,6 +93,9 @@ const Index = () => {
   const [storyDone,    setStoryDone]    = useState(false);
   const storyRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  /* Happy уходит после того как представил персонажа */
+  const [happySaid,    setHappySaid]    = useState(false);
+
   /* ── Инициализация: сессия и загрузка профиля ── */
   useEffect(() => {
     const init = async () => {
@@ -194,6 +197,7 @@ const Index = () => {
     setStep(0);
     setAnswers({});
     setError('');
+    setHappySaid(false);
     setView('interview');
   };
 
@@ -490,21 +494,35 @@ const Index = () => {
         {view === 'profile' && (
           <section className="pt-6">
 
-            {/* Happy представляет — речевой пузырь сверху */}
-            <div className="mx-auto mb-10 flex max-w-3xl items-end gap-4 animate-fade-in">
-              <div className="relative w-24 flex-shrink-0 md:w-32">
-                <div className="absolute inset-0 rounded-full bg-amber-300/30 blur-2xl animate-breathe" />
-                <img src={HAPPY_IMG} alt="Happy" className="relative w-full drop-shadow-xl"
-                  style={{ filter: 'drop-shadow(0 0 16px rgba(251,191,36,0.35))' }} />
+            {/* Happy прощается — только если ещё не попрощался */}
+            {!happySaid && (
+              <div className="mx-auto mb-10 flex max-w-3xl items-end gap-4 animate-fade-in">
+                <div className="relative w-24 flex-shrink-0 md:w-32"
+                  style={{ transition: 'opacity 0.8s, transform 0.8s' }}>
+                  <div className="absolute inset-0 rounded-full bg-amber-300/30 blur-2xl animate-breathe" />
+                  <img src={HAPPY_IMG} alt="Happy" className="relative w-full drop-shadow-xl"
+                    style={{ filter: 'drop-shadow(0 0 16px rgba(251,191,36,0.35))' }} />
+                </div>
+                <div className="relative flex-1 rounded-3xl rounded-bl-none border border-border bg-card/80 p-5 shadow-sm backdrop-blur-sm">
+                  <div className="absolute -bottom-3 left-5 h-4 w-4 rotate-45 border-b border-l border-border bg-card/80" />
+                  <p className="font-display text-lg leading-snug md:text-xl">
+                    Вот он! Познакомься — это{' '}
+                    <span className="text-accent font-semibold">{character?.name || 'твой персонаж'}</span>.
+                    Я чувствовал его с самого начала нашего разговора. ✨
+                  </p>
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                    Моя миссия выполнена. Дальше он поведёт тебя сам — это его путь, и только твой.
+                    Удачи! Я буду рядом, если понадоблюсь снова 👋
+                  </p>
+                  <button
+                    onClick={() => setHappySaid(true)}
+                    className="mt-4 rounded-full bg-accent/10 px-5 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/20"
+                  >
+                    Спасибо, Happy! До встречи →
+                  </button>
+                </div>
               </div>
-              <div className="relative flex-1 rounded-3xl rounded-bl-none border border-border bg-card/80 p-5 shadow-sm backdrop-blur-sm">
-                <div className="absolute -bottom-3 left-5 h-4 w-4 rotate-45 border-b border-l border-border bg-card/80" />
-                <p className="font-display text-lg leading-snug md:text-xl">
-                  Вот он! Познакомься — это <span className="text-accent font-semibold">{character?.name || 'твой персонаж'}</span>.
-                  Я чувствовал его с самого начала нашего разговора. ✨
-                </p>
-              </div>
-            </div>
+            )}
 
             {/* Основной контент: фото + карточки */}
             <div className="grid gap-8 md:grid-cols-2 md:items-start">
@@ -514,24 +532,18 @@ const Index = () => {
                 <div className="absolute -inset-4 rounded-[2rem] bg-accent/20 blur-3xl" />
                 <img src={charImg} alt="Внутренний персонаж"
                   className="relative aspect-[4/5] w-full rounded-[2rem] object-cover shadow-2xl" />
-                {/* Имя поверх фото снизу */}
                 <div className="absolute bottom-0 left-0 right-0 rounded-b-[2rem] bg-gradient-to-t from-black/70 via-black/30 to-transparent p-6">
                   <p className="text-xs uppercase tracking-widest text-white/70">Твой внутренний персонаж</p>
-                  <h2 className="mt-1 font-display text-3xl font-semibold text-white leading-tight">
-                    {charName}
-                  </h2>
+                  <h2 className="mt-1 font-display text-3xl font-semibold text-white leading-tight">{charName}</h2>
                 </div>
               </div>
 
               {/* Правая колонка */}
               <div className="animate-fade-in space-y-4">
-
-                {/* Описание */}
                 <div className="rounded-3xl border border-border bg-card/70 p-6">
                   <p className="text-base leading-relaxed text-foreground/80">{charDesc}</p>
                 </div>
 
-                {/* Шкалы */}
                 <div className="rounded-3xl border border-border bg-card/70 p-5 space-y-4">
                   {states.map((s) => (
                     <div key={s.name}>
@@ -550,7 +562,6 @@ const Index = () => {
                   ))}
                 </div>
 
-                {/* Сильная сторона + Потребность */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-2xl border border-border bg-card/70 p-4">
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Сила</p>
@@ -574,19 +585,20 @@ const Index = () => {
         {view === 'task' && (
           <section className="mx-auto max-w-2xl pt-8">
 
-            {/* Happy выдаёт задание */}
+            {/* Персонаж пользователя выдаёт задание */}
             <div className="mb-8 flex items-end gap-4 animate-fade-in">
-              <div className="relative w-20 flex-shrink-0 md:w-28">
-                <div className="absolute inset-0 rounded-full bg-amber-300/25 blur-2xl animate-breathe" />
-                <img src={HAPPY_IMG} alt="Happy" className="relative w-full drop-shadow-xl"
-                  style={{ filter: 'drop-shadow(0 0 16px rgba(251,191,36,0.3))' }} />
+              <div className="relative w-20 flex-shrink-0 md:w-24">
+                <div className="absolute inset-0 rounded-full bg-accent/20 blur-2xl animate-breathe" />
+                <img src={charImg} alt={character?.name || 'Персонаж'}
+                  className="relative w-full rounded-2xl object-cover aspect-square shadow-lg ring-2 ring-accent/30" />
               </div>
               <div className="relative flex-1 rounded-3xl rounded-bl-none border border-border bg-card/80 p-4 shadow-sm backdrop-blur-sm">
                 <div className="absolute -bottom-3 left-5 h-4 w-4 rotate-45 border-b border-l border-border bg-card/80" />
+                <p className="text-xs font-medium uppercase tracking-wider text-accent mb-1">{character?.name || 'Твой персонаж'}</p>
                 <p className="text-base leading-snug text-foreground/80">
                   {taskDone
-                    ? `Вот это да! ${character?.name || 'Твой персонаж'} светится ярче! Встретимся завтра — и снова в путь 🌟`
-                    : 'У меня есть для тебя одно небольшое задание на сегодня. Оно маленькое, но очень важное 🎯'}
+                    ? 'Я почувствовал это! Маленький шаг, но он настоящий. Возвращайся завтра — путь продолжается 🌟'
+                    : 'У меня есть для тебя одно небольшое задание на сегодня. Оно маленькое, но очень важное для нас обоих 🎯'}
                 </p>
               </div>
             </div>
@@ -624,9 +636,20 @@ const Index = () => {
 
         {/* JOURNEY */}
         {view === 'journey' && (
-          <section className="mx-auto max-w-2xl pt-12">
-            <h2 className="font-display text-4xl font-medium md:text-5xl">История развития</h2>
-            <p className="mt-3 text-muted-foreground">Каждый день оставляет след на пути твоего персонажа.</p>
+          <section className="mx-auto max-w-2xl pt-8">
+            {/* Шапка с аватаром персонажа */}
+            {character && (
+              <div className="mb-8 flex items-center gap-4 animate-fade-in">
+                <img src={charImg} alt={character.name}
+                  className="h-14 w-14 rounded-2xl object-cover shadow-md ring-2 ring-accent/30 flex-shrink-0" />
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground">История пути</p>
+                  <h2 className="font-display text-2xl font-semibold leading-tight">{character.name}</h2>
+                </div>
+              </div>
+            )}
+            {!character && <h2 className="font-display text-4xl font-medium md:text-5xl mb-3">История развития</h2>}
+            <p className="mt-1 text-muted-foreground">Каждый день оставляет след на пути твоего персонажа.</p>
 
             {journey.length === 0 ? (
               <div className="mt-12 rounded-3xl border border-border bg-card/70 p-10 text-center">
