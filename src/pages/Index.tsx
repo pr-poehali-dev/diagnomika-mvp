@@ -31,6 +31,7 @@ const API_CHARACTER  = 'https://functions.poehali.dev/a58d3f5f-8515-48c8-8cb1-da
 const API_PROFILE    = 'https://functions.poehali.dev/b8c6c54b-942a-4314-bae3-b90842bc1bce';
 const API_SAVE       = 'https://functions.poehali.dev/5c86a155-1ff3-43d6-a0f5-f459a2bd628e';
 const API_COMPLETE   = 'https://functions.poehali.dev/a6fecb70-da06-483a-9867-bb95698d3256';
+const API_DAILY_TASK = 'https://functions.poehali.dev/0fcb3416-3803-46b3-8536-79ec3917fbe0';
 
 type Character = {
   name: string; title: string; description: string;
@@ -43,7 +44,9 @@ type Character = {
 };
 
 type JourneyEntry = { day_number: number; title: string; text: string; task_date: string };
-type TodayTask    = { task_text: string; completed: boolean; task_date: string };
+type TodayTask    = { task_text: string; completed: boolean; task_date: string; category?: string; subcategory?: string };
+type TaskResponse = { task: string; category: string; subcategory: string; why: string; completed: boolean; is_new: boolean };
+type CompleteResponse = { ok: boolean; response: string; next_hint: string };
 
 const QUESTIONS = [
   { q: 'Как ты чувствуешь себя сегодня?', placeholder: 'Опиши своё состояние одной-двумя фразами…' },
@@ -88,6 +91,10 @@ const Index = () => {
   const [todayTask,    setTodayTask]    = useState<TodayTask | null>(null);
   const [journey,      setJourney]      = useState<JourneyEntry[]>([]);
   const [taskDone,     setTaskDone]     = useState(false);
+  const [taskData,     setTaskData]     = useState<TaskResponse | null>(null);
+  const [taskLoading,  setTaskLoading]  = useState(false);
+  const [completeResp, setCompleteResp] = useState<CompleteResponse | null>(null);
+  const [feeling,      setFeeling]      = useState('');
 
   /* story state */
   const [visibleLines, setVisibleLines] = useState(0);
@@ -202,20 +209,44 @@ const Index = () => {
     setView('interview');
   };
 
-  const completeTask = async () => {
-    setTaskDone(true);
-    if (sessionToken) {
-      await fetch(API_COMPLETE, {
+  const loadDailyTask = async () => {
+    if (!sessionToken) return;
+    setTaskLoading(true);
+    try {
+      const res = await fetch(API_DAILY_TASK, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
         body: JSON.stringify({}),
       });
+      const data: TaskResponse = await res.json();
+      setTaskData(data);
+      setTaskDone(data.completed);
+    } finally {
+      setTaskLoading(false);
+    }
+  };
+
+  const completeTask = async () => {
+    setTaskDone(true);
+    setCompleteResp(null);
+    if (sessionToken) {
+      const res = await fetch(API_COMPLETE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+        body: JSON.stringify({ feeling }),
+      });
+      const data: CompleteResponse = await res.json();
+      setCompleteResp(data);
+      setFeeling('');
     }
   };
 
   const goTo = (id: string) => {
     if (id === 'interview') startInterview();
-    else setView(id as View);
+    else {
+      setView(id as View);
+      if (id === 'task') loadDailyTask();
+    }
   };
 
   /* ── Данные для профиля ── */
@@ -233,8 +264,17 @@ const Index = () => {
   const charImg     = character?.image_url || CHARACTER_IMG;
   const charStrength = character?.strength || 'Внутреннее спокойствие';
   const charNeed    = character?.need || 'Быть услышанным';
-  const taskText    = character?.task || todayTask?.task_text ||
+  const taskText    = taskData?.task || character?.task || todayTask?.task_text ||
     'Выпей стакан воды и 30 секунд поблагодари своё тело за то, что оно делает для тебя.';
+  const taskCategory = taskData?.category || todayTask?.category || 'soul';
+  const taskSubcategory = taskData?.subcategory || todayTask?.subcategory || '';
+  const taskWhy = taskData?.why || '';
+
+  const CATEGORY_META: Record<string, { label: string; icon: string; color: string }> = {
+    body: { label: 'Тело',  icon: 'Activity', color: 'text-emerald-500' },
+    mind: { label: 'Ум',    icon: 'Brain',    color: 'text-blue-500'    },
+    soul: { label: 'Душа',  icon: 'Heart',    color: 'text-violet-500'  },
+  };
 
   /* ── Спиннер инициализации ── */
   if (view === 'init') {
@@ -626,7 +666,7 @@ const Index = () => {
                   </div>
                 </div>
 
-                <Button size="lg" onClick={() => setView('task')} className="w-full rounded-full text-base">
+                <Button size="lg" onClick={() => { setView('task'); loadDailyTask(); }} className="w-full rounded-full text-base">
                   Получить задание дня <Icon name="ArrowRight" size={18} className="ml-2" />
                 </Button>
               </div>
@@ -636,54 +676,116 @@ const Index = () => {
 
         {/* TASK */}
         {view === 'task' && (
-          <section className="mx-auto max-w-2xl pt-8">
+          <section className="mx-auto max-w-xl pt-6">
 
-            {/* Персонаж пользователя выдаёт задание */}
-            <div className="mb-8 flex items-end gap-4 animate-fade-in">
-              <div className="relative w-20 flex-shrink-0 md:w-24">
-                <div className="absolute inset-0 rounded-full bg-accent/20 blur-2xl animate-breathe" />
-                <img src={charImg} alt={character?.name || 'Персонаж'}
-                  className="relative w-full rounded-2xl object-cover aspect-square shadow-lg ring-2 ring-accent/30" />
-              </div>
-              <div className="relative flex-1 rounded-3xl rounded-bl-none border border-border bg-card/80 p-4 shadow-sm backdrop-blur-sm">
-                <div className="absolute -bottom-3 left-5 h-4 w-4 rotate-45 border-b border-l border-border bg-card/80" />
-                <p className="text-xs font-medium uppercase tracking-wider text-accent mb-1">{character?.name || 'Твой персонаж'}</p>
-                <p className="text-base leading-snug text-foreground/80">
-                  {taskDone
-                    ? 'Я почувствовал это! Маленький шаг, но он настоящий. Возвращайся завтра — путь продолжается 🌟'
-                    : 'У меня есть для тебя одно небольшое задание на сегодня. Оно маленькое, но очень важное для нас обоих 🎯'}
-                </p>
-              </div>
+            {/* Шапка: принцип */}
+            <div className="mb-6 text-center animate-fade-in">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                Один день · Одна задача · Один результат
+              </p>
             </div>
+
+            {/* Состояние загрузки */}
+            {taskLoading && (
+              <div className="flex flex-col items-center gap-4 py-20 animate-fade-in">
+                <div className="relative h-14 w-14">
+                  <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-accent" />
+                  <img src={charImg} alt="" className="absolute inset-1 rounded-full object-cover" />
+                </div>
+                <p className="text-sm text-muted-foreground">{character?.name || 'Персонаж'} выбирает задание…</p>
+              </div>
+            )}
 
             {/* Карточка задания */}
-            <div className="animate-scale-in rounded-[2rem] border border-border bg-card/80 p-8 shadow-xl md:p-10">
-              <p className="font-display text-2xl leading-snug md:text-3xl">{taskText}</p>
+            {!taskLoading && (
+              <div className="animate-scale-in space-y-4">
 
-              <Button
-                size="lg"
-                onClick={completeTask}
-                disabled={taskDone}
-                className={`mt-8 w-full rounded-full text-base transition-all ${taskDone ? 'bg-green-600 hover:bg-green-600 text-white' : ''}`}
-              >
-                {taskDone
-                  ? <><Icon name="Check" size={18} className="mr-2" /> Выполнено сегодня!</>
-                  : 'Я сделал это ✓'}
-              </Button>
-
-              {taskDone && (
-                <div className="animate-fade-in mt-6 flex items-center gap-3 rounded-2xl bg-green-50 border border-green-100 p-4">
-                  <Icon name="Sparkles" size={20} className="text-green-600 flex-shrink-0" />
-                  <p className="text-sm text-green-800 leading-snug">
-                    Маленький шаг, но {character?.name || 'твой персонаж'} почувствовал его. Возвращайся завтра — путь продолжается.
-                  </p>
+                {/* Персонаж + пузырь */}
+                <div className="flex items-end gap-3">
+                  <div className="relative w-16 flex-shrink-0">
+                    <div className="absolute inset-0 rounded-full bg-accent/20 blur-xl animate-breathe" />
+                    <img src={charImg} alt={character?.name || 'Персонаж'}
+                      className="relative w-full rounded-2xl object-cover aspect-square shadow-md ring-2 ring-accent/30" />
+                  </div>
+                  <div className="relative flex-1 rounded-3xl rounded-bl-none border border-border bg-card/80 px-5 py-4 backdrop-blur-sm">
+                    <div className="absolute -bottom-3 left-5 h-4 w-4 rotate-45 border-b border-l border-border bg-card/80" />
+                    <p className="text-xs font-semibold uppercase tracking-wider text-accent mb-1">{character?.name || 'Твой персонаж'}</p>
+                    <p className="text-sm leading-relaxed text-foreground/80">
+                      {taskDone
+                        ? (completeResp?.response || 'Маленький шаг. Настоящий.')
+                        : 'Я вижу несколько направлений. Давай проверим одно маленьким действием.'}
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
 
-            <Button variant="ghost" onClick={() => setView('profile')} className="mt-6 w-full rounded-full text-muted-foreground">
-              <Icon name="ArrowLeft" size={16} className="mr-1" /> Вернуться к персонажу
-            </Button>
+                {/* Категория */}
+                {!taskDone && (
+                  <div className="flex items-center gap-2 px-1">
+                    <Icon
+                      name={CATEGORY_META[taskCategory]?.icon || 'Heart'}
+                      size={14}
+                      className={CATEGORY_META[taskCategory]?.color || 'text-accent'}
+                    />
+                    <span className={`text-xs font-medium uppercase tracking-wider ${CATEGORY_META[taskCategory]?.color || 'text-accent'}`}>
+                      {CATEGORY_META[taskCategory]?.label || 'Душа'}
+                      {taskSubcategory ? ` · ${taskSubcategory}` : ''}
+                    </span>
+                  </div>
+                )}
+
+                {/* Само задание */}
+                <div className="rounded-[2rem] border border-border bg-card/90 p-7 shadow-lg">
+                  <p className="font-display text-2xl leading-snug md:text-3xl">{taskText}</p>
+
+                  {/* Почему именно это */}
+                  {taskWhy && !taskDone && (
+                    <p className="mt-4 text-sm italic text-muted-foreground border-l-2 border-accent/40 pl-3">
+                      {taskWhy}
+                    </p>
+                  )}
+
+                  {/* Поле "как ты себя чувствуешь" — появляется перед отметкой */}
+                  {!taskDone && (
+                    <div className="mt-6 space-y-3">
+                      <Textarea
+                        value={feeling}
+                        onChange={(e) => setFeeling(e.target.value)}
+                        placeholder="Как ты себя чувствуешь прямо сейчас? (необязательно)"
+                        className="min-h-[72px] resize-none rounded-2xl border-border bg-background/50 text-sm"
+                      />
+                      <Button
+                        size="lg"
+                        onClick={completeTask}
+                        className="w-full rounded-full text-base"
+                      >
+                        Я сделал это
+                        <Icon name="Check" size={18} className="ml-2" />
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* После выполнения */}
+                  {taskDone && (
+                    <div className="mt-6 space-y-3 animate-fade-in">
+                      <div className="flex items-center gap-3 rounded-2xl bg-green-50 border border-green-100 p-4">
+                        <Icon name="CheckCircle" size={20} className="text-green-600 flex-shrink-0" />
+                        <p className="text-sm font-medium text-green-800">Выполнено сегодня</p>
+                      </div>
+                      {completeResp?.next_hint && (
+                        <div className="rounded-2xl border border-border bg-card/60 p-4">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Направление на завтра</p>
+                          <p className="text-sm leading-relaxed text-foreground/80 italic">{completeResp.next_hint}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <Button variant="ghost" onClick={() => setView('profile')} className="w-full rounded-full text-muted-foreground">
+                  <Icon name="ArrowLeft" size={16} className="mr-1" /> Вернуться к персонажу
+                </Button>
+              </div>
+            )}
           </section>
         )}
 

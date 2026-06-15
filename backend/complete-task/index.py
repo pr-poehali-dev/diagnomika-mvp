@@ -1,5 +1,6 @@
 import json
 import os
+import urllib.request
 import psycopg2
 from datetime import datetime, date
 
@@ -12,30 +13,46 @@ CORS = {
 }
 
 
+def _openai(payload: dict) -> dict:
+    req = urllib.request.Request(
+        'https://api.openai.com/v1/chat/completions',
+        data=json.dumps(payload).encode('utf-8'),
+        headers={
+            'Authorization': f"Bearer {os.environ['OPENAI_API_KEY']}",
+            'Content-Type': 'application/json',
+        },
+        method='POST',
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read().decode('utf-8'))
+
+
 def get_conn():
     return psycopg2.connect(os.environ['DATABASE_URL'])
 
 
 def handler(event: dict, context) -> dict:
-    '''Отмечает задание дня выполненным.'''
+    '''Отмечает задание дня выполненным и возвращает тёплый отклик персонажа.'''
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': {**CORS, 'Access-Control-Max-Age': '86400'}, 'body': ''}
 
-    token = event.get('headers', {}).get('x-session-token') or event.get('headers', {}).get('X-Session-Token')
+    token = (event.get('headers') or {}).get('x-session-token') or (event.get('headers') or {}).get('X-Session-Token')
     if not token:
         return {'statusCode': 401, 'headers': CORS, 'body': json.dumps({'error': 'no token'})}
+
+    body = json.loads(event.get('body') or '{}')
+    feeling = body.get('feeling', '')
 
     conn = get_conn()
     cur = conn.cursor()
 
     cur.execute(f"SELECT id FROM {SCHEMA}.users WHERE session_token = %s", (token,))
-    user_row = cur.fetchone()
-    if not user_row:
-        cur.close()
-        conn.close()
+    row = cur.fetchone()
+    if not row:
+        cur.close(); conn.close()
         return {'statusCode': 404, 'headers': CORS, 'body': json.dumps({'error': 'user not found'})}
 
-    user_id = str(user_row[0])
+    user_id = str(row[0])
     today = date.today().isoformat()
 
     cur.execute(
@@ -45,12 +62,59 @@ def handler(event: dict, context) -> dict:
         (datetime.utcnow(), user_id, today)
     )
 
+    cur.execute(
+        f"""SELECT task_text, category FROM {SCHEMA}.daily_tasks
+            WHERE user_id = %s AND task_date = %s""",
+        (user_id, today)
+    )
+    task_row = cur.fetchone()
+
+    cur.execute(
+        f"""SELECT name, title, soul_level, mind_level, body_level
+            FROM {SCHEMA}.characters WHERE user_id = %s
+            ORDER BY created_at DESC LIMIT 1""",
+        (user_id,)
+    )
+    char_row = cur.fetchone()
+
     conn.commit()
     cur.close()
     conn.close()
 
+    char_name = char_row[0] if char_row else 'твой персонаж'
+    task_text = task_row[0] if task_row else ''
+    category = task_row[1] if task_row else 'soul'
+
+    feeling_context = f' Человек написал: «{feeling}».' if feeling else ''
+
+    system_prompt = f"""Ты — голос внутреннего персонажа по имени {char_name} в мире Диагномики.
+Человек только что выполнил задание дня: «{task_text}» (категория: {category}).{feeling_context}
+
+Напиши тёплый, живой, короткий отклик от лица персонажа — 2-3 предложения.
+НЕ хвали банально («Молодец!»). Отметь что-то настоящее. Говори «я» и «мы».
+Затем напиши одну мысль-подсказку на завтра — не задание, а направление: куда стоит обратить внимание.
+
+Ответь ТОЛЬКО валидным JSON:
+{{
+  "response": "тёплый отклик от лица персонажа (2-3 предложения)",
+  "next_hint": "одна мысль на завтра — направление без конкретного задания (1 предложение)"
+}}"""
+
+    result = _openai({
+        'model': 'gpt-4o-mini',
+        'messages': [{'role': 'system', 'content': system_prompt}],
+        'temperature': 0.9,
+        'response_format': {'type': 'json_object'},
+    })
+
+    data = json.loads(result['choices'][0]['message']['content'])
+
     return {
         'statusCode': 200,
         'headers': {**CORS, 'Content-Type': 'application/json'},
-        'body': json.dumps({'ok': True}),
+        'body': json.dumps({
+            'ok': True,
+            'response': data.get('response', 'Маленький шаг. Настоящий.'),
+            'next_hint': data.get('next_hint', 'Завтра — новый день и новый шаг.'),
+        }, ensure_ascii=False),
     }

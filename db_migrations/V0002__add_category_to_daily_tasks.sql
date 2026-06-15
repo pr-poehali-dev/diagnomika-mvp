@@ -1,0 +1,3 @@
+ALTER TABLE t_p13645480_diagnomika_mvp.daily_tasks
+  ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'soul',
+  ADD COLUMN IF NOT EXISTS subcategory TEXT NOT NULL DEFAULT '';
