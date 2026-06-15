@@ -488,76 +488,137 @@ const Index = () => {
 
         {/* PROFILE */}
         {view === 'profile' && (
-          <section className="grid gap-10 pt-8 md:grid-cols-2 md:items-center">
-            <div className="animate-scale-in relative">
-              <div className="absolute -inset-4 rounded-[2rem] bg-accent/15 blur-2xl" />
-              <img src={charImg} alt="Внутренний персонаж"
-                className="relative aspect-[4/5] w-full rounded-[2rem] object-cover shadow-2xl" />
+          <section className="pt-6">
+
+            {/* Happy представляет — речевой пузырь сверху */}
+            <div className="mx-auto mb-10 flex max-w-3xl items-end gap-4 animate-fade-in">
+              <div className="relative w-24 flex-shrink-0 md:w-32">
+                <div className="absolute inset-0 rounded-full bg-amber-300/30 blur-2xl animate-breathe" />
+                <img src={HAPPY_IMG} alt="Happy" className="relative w-full drop-shadow-xl"
+                  style={{ filter: 'drop-shadow(0 0 16px rgba(251,191,36,0.35))' }} />
+              </div>
+              <div className="relative flex-1 rounded-3xl rounded-bl-none border border-border bg-card/80 p-5 shadow-sm backdrop-blur-sm">
+                <div className="absolute -bottom-3 left-5 h-4 w-4 rotate-45 border-b border-l border-border bg-card/80" />
+                <p className="font-display text-lg leading-snug md:text-xl">
+                  Вот он! Познакомься — это <span className="text-accent font-semibold">{character?.name || 'твой персонаж'}</span>.
+                  Я чувствовал его с самого начала нашего разговора. ✨
+                </p>
+              </div>
             </div>
-            <div className="animate-fade-in">
-              <span className="text-sm uppercase tracking-widest text-muted-foreground">Твой персонаж</span>
-              <h2 className="mt-2 font-display text-5xl font-medium tracking-tight">{charName}</h2>
-              <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{charDesc}</p>
 
-              <div className="mt-8 space-y-4">
-                {states.map((s) => (
-                  <div key={s.name} className="rounded-2xl border border-border bg-card/70 p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Icon name={s.icon} size={18} className="text-accent" />
-                        <span className="font-medium">{s.name}</span>
+            {/* Основной контент: фото + карточки */}
+            <div className="grid gap-8 md:grid-cols-2 md:items-start">
+
+              {/* Фото персонажа */}
+              <div className="animate-scale-in relative">
+                <div className="absolute -inset-4 rounded-[2rem] bg-accent/20 blur-3xl" />
+                <img src={charImg} alt="Внутренний персонаж"
+                  className="relative aspect-[4/5] w-full rounded-[2rem] object-cover shadow-2xl" />
+                {/* Имя поверх фото снизу */}
+                <div className="absolute bottom-0 left-0 right-0 rounded-b-[2rem] bg-gradient-to-t from-black/70 via-black/30 to-transparent p-6">
+                  <p className="text-xs uppercase tracking-widest text-white/70">Твой внутренний персонаж</p>
+                  <h2 className="mt-1 font-display text-3xl font-semibold text-white leading-tight">
+                    {charName}
+                  </h2>
+                </div>
+              </div>
+
+              {/* Правая колонка */}
+              <div className="animate-fade-in space-y-4">
+
+                {/* Описание */}
+                <div className="rounded-3xl border border-border bg-card/70 p-6">
+                  <p className="text-base leading-relaxed text-foreground/80">{charDesc}</p>
+                </div>
+
+                {/* Шкалы */}
+                <div className="rounded-3xl border border-border bg-card/70 p-5 space-y-4">
+                  {states.map((s) => (
+                    <div key={s.name}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <Icon name={s.icon} size={16} className="text-accent" />
+                          <span className="text-sm font-medium">{s.name}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{s.value}</span>
                       </div>
-                      <span className="text-sm text-muted-foreground">{s.value}</span>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                        <div className="h-full rounded-full bg-accent transition-all duration-1000"
+                          style={{ width: `${s.level}%` }} />
+                      </div>
                     </div>
-                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full rounded-full bg-accent transition-all duration-700" style={{ width: `${s.level}%` }} />
-                    </div>
+                  ))}
+                </div>
+
+                {/* Сильная сторона + Потребность */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-border bg-card/70 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Сила</p>
+                    <p className="mt-1 font-display text-lg leading-tight">{charStrength}</p>
                   </div>
-                ))}
-              </div>
-
-              <div className="mt-6 grid grid-cols-2 gap-4">
-                <div className="rounded-2xl border border-border bg-card/70 p-4">
-                  <span className="text-xs uppercase tracking-wide text-muted-foreground">Сильная сторона</span>
-                  <p className="mt-1 font-display text-lg">{charStrength}</p>
+                  <div className="rounded-2xl border border-border bg-card/70 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Потребность</p>
+                    <p className="mt-1 font-display text-lg leading-tight">{charNeed}</p>
+                  </div>
                 </div>
-                <div className="rounded-2xl border border-border bg-card/70 p-4">
-                  <span className="text-xs uppercase tracking-wide text-muted-foreground">Скрытая потребность</span>
-                  <p className="mt-1 font-display text-lg">{charNeed}</p>
-                </div>
-              </div>
 
-              <Button size="lg" onClick={() => setView('task')} className="mt-8 w-full rounded-full text-base">
-                Задание дня <Icon name="ArrowRight" size={18} className="ml-1" />
-              </Button>
+                <Button size="lg" onClick={() => setView('task')} className="w-full rounded-full text-base">
+                  Получить задание дня <Icon name="ArrowRight" size={18} className="ml-2" />
+                </Button>
+              </div>
             </div>
           </section>
         )}
 
         {/* TASK */}
         {view === 'task' && (
-          <section className="mx-auto max-w-2xl pt-12 text-center">
-            <span className="text-sm uppercase tracking-widest text-muted-foreground">
-              Один день · Одна задача · Один результат
-            </span>
-            <h2 className="mt-4 font-display text-4xl font-medium md:text-5xl">Задание дня</h2>
-            <div className="animate-scale-in mt-10 rounded-[2rem] border border-border bg-card/80 p-10 shadow-xl">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/15">
-                <Icon name="GlassWater" size={30} className="text-accent" />
+          <section className="mx-auto max-w-2xl pt-8">
+
+            {/* Happy выдаёт задание */}
+            <div className="mb-8 flex items-end gap-4 animate-fade-in">
+              <div className="relative w-20 flex-shrink-0 md:w-28">
+                <div className="absolute inset-0 rounded-full bg-amber-300/25 blur-2xl animate-breathe" />
+                <img src={HAPPY_IMG} alt="Happy" className="relative w-full drop-shadow-xl"
+                  style={{ filter: 'drop-shadow(0 0 16px rgba(251,191,36,0.3))' }} />
               </div>
-              <p className="mt-6 font-display text-2xl leading-snug md:text-3xl">{taskText}</p>
-              <Button size="lg" onClick={completeTask} disabled={taskDone}
-                className="mt-8 rounded-full px-10 text-base">
-                {taskDone
-                  ? <><Icon name="Check" size={18} className="mr-1" /> Выполнено сегодня</>
-                  : 'Я сделал это'}
-              </Button>
-              {taskDone && (
-                <p className="animate-fade-in mt-6 text-muted-foreground">
-                  {character?.name || 'Персонаж'} стал чуть ярче. Возвращайся завтра — путь продолжится.
+              <div className="relative flex-1 rounded-3xl rounded-bl-none border border-border bg-card/80 p-4 shadow-sm backdrop-blur-sm">
+                <div className="absolute -bottom-3 left-5 h-4 w-4 rotate-45 border-b border-l border-border bg-card/80" />
+                <p className="text-base leading-snug text-foreground/80">
+                  {taskDone
+                    ? `Вот это да! ${character?.name || 'Твой персонаж'} светится ярче! Встретимся завтра — и снова в путь 🌟`
+                    : 'У меня есть для тебя одно небольшое задание на сегодня. Оно маленькое, но очень важное 🎯'}
                 </p>
+              </div>
+            </div>
+
+            {/* Карточка задания */}
+            <div className="animate-scale-in rounded-[2rem] border border-border bg-card/80 p-8 shadow-xl md:p-10">
+              <p className="font-display text-2xl leading-snug md:text-3xl">{taskText}</p>
+
+              <Button
+                size="lg"
+                onClick={completeTask}
+                disabled={taskDone}
+                className={`mt-8 w-full rounded-full text-base transition-all ${taskDone ? 'bg-green-600 hover:bg-green-600 text-white' : ''}`}
+              >
+                {taskDone
+                  ? <><Icon name="Check" size={18} className="mr-2" /> Выполнено сегодня!</>
+                  : 'Я сделал это ✓'}
+              </Button>
+
+              {taskDone && (
+                <div className="animate-fade-in mt-6 flex items-center gap-3 rounded-2xl bg-green-50 border border-green-100 p-4">
+                  <Icon name="Sparkles" size={20} className="text-green-600 flex-shrink-0" />
+                  <p className="text-sm text-green-800 leading-snug">
+                    Маленький шаг, но {character?.name || 'твой персонаж'} почувствовал его. Возвращайся завтра — путь продолжается.
+                  </p>
+                </div>
               )}
             </div>
+
+            <Button variant="ghost" onClick={() => setView('profile')} className="mt-6 w-full rounded-full text-muted-foreground">
+              <Icon name="ArrowLeft" size={16} className="mr-1" /> Вернуться к персонажу
+            </Button>
           </section>
         )}
 
