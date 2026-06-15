@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -6,24 +6,22 @@ import { Textarea } from '@/components/ui/textarea';
 const CHARACTER_IMG =
   'https://cdn.poehali.dev/projects/cb7818a8-cd7f-40ae-8055-7881cf09d17e/files/763ee90f-b510-426b-9358-16a0289dc20e.jpg';
 
-const CHARACTER_API = 'https://functions.poehali.dev/a58d3f5f-8515-48c8-8cb1-da5d37e5aebf';
+const API_CHARACTER  = 'https://functions.poehali.dev/a58d3f5f-8515-48c8-8cb1-da5d37e5aebf';
+const API_PROFILE    = 'https://functions.poehali.dev/b8c6c54b-942a-4314-bae3-b90842bc1bce';
+const API_SAVE       = 'https://functions.poehali.dev/5c86a155-1ff3-43d6-a0f5-f459a2bd628e';
+const API_COMPLETE   = 'https://functions.poehali.dev/a6fecb70-da06-483a-9867-bb95698d3256';
 
 type Character = {
-  name: string;
-  title: string;
-  description: string;
-  soul: string;
-  soul_level: number;
-  mind: string;
-  mind_level: number;
-  body: string;
-  body_level: number;
-  strength: string;
-  need: string;
-  story: string;
-  task: string;
-  image_url: string;
+  name: string; title: string; description: string;
+  soul: string; soul_level: number;
+  mind: string; mind_level: number;
+  body: string; body_level: number;
+  strength: string; need: string; story: string;
+  task: string; image_url: string;
 };
+
+type JourneyEntry = { day_number: number; title: string; text: string; task_date: string };
+type TodayTask    = { task_text: string; completed: boolean; task_date: string };
 
 const QUESTIONS = [
   { q: 'Как ты чувствуешь себя сегодня?', placeholder: 'Опиши своё состояние одной-двумя фразами…' },
@@ -34,70 +32,109 @@ const QUESTIONS = [
     q: 'Если бы твой внутренний мир был персонажем, кто бы это был?',
     options: ['Гномик', 'Самурай', 'Путник', 'Алхимик', 'Богатырь', 'Исследователь', 'Мудрец'],
   },
-  {
-    q: 'Какой он сейчас?',
-    options: ['Яркий', 'Уставший', 'Спокойный', 'Ищущий', 'Потерянный'],
-  },
+  { q: 'Какой он сейчас?', options: ['Яркий', 'Уставший', 'Спокойный', 'Ищущий', 'Потерянный'] },
   { q: 'Что ему сейчас нужно больше всего?', placeholder: 'Отдых, движение, тишина, смелость…' },
   { q: 'Что ты хочешь почувствовать через 7 дней?', placeholder: 'Лёгкость, ясность, силу…' },
-  {
-    q: 'Готов ли ты сегодня сделать одно маленькое действие?',
-    options: ['Да, я готов', 'Пока присматриваюсь'],
-  },
+  { q: 'Готов ли ты сегодня сделать одно маленькое действие?', options: ['Да, я готов', 'Пока присматриваюсь'] },
 ];
 
 const NAV = [
-  { id: 'home', label: 'Главная', icon: 'Home' },
-  { id: 'interview', label: 'Интервью', icon: 'MessageCircleHeart' },
-  { id: 'profile', label: 'Персонаж', icon: 'Sparkles' },
-  { id: 'task', label: 'Задание дня', icon: 'CircleCheck' },
-  { id: 'journey', label: 'История', icon: 'Footprints' },
-  { id: 'contacts', label: 'Поддержка', icon: 'LifeBuoy' },
+  { id: 'home',     label: 'Главная',      icon: 'Home' },
+  { id: 'interview',label: 'Интервью',     icon: 'MessageCircleHeart' },
+  { id: 'profile',  label: 'Персонаж',     icon: 'Sparkles' },
+  { id: 'task',     label: 'Задание дня',  icon: 'CircleCheck' },
+  { id: 'journey',  label: 'История',      icon: 'Footprints' },
+  { id: 'contacts', label: 'Поддержка',    icon: 'LifeBuoy' },
 ];
 
-const STATES = [
-  { name: 'Душа', icon: 'Heart', value: 'Ищет тишины', level: 64 },
-  { name: 'Ум', icon: 'Brain', value: 'Перегружен мыслями', level: 48 },
-  { name: 'Тело', icon: 'Activity', value: 'Хочет движения', level: 72 },
+const DEMO_STATES = [
+  { name: 'Душа', icon: 'Heart',     value: 'Ищет тишины',         level: 64 },
+  { name: 'Ум',   icon: 'Brain',     value: 'Перегружен мыслями',  level: 48 },
+  { name: 'Тело', icon: 'Activity',  value: 'Хочет движения',      level: 72 },
 ];
 
-const JOURNEY = [
-  { day: 'День 1', title: 'Знакомство', text: 'Ты создал своего персонажа и впервые услышал его голос.', done: true },
-  { day: 'День 2', title: 'Первый вдох', text: 'Минута тишины принесла ясность в начало дня.', done: true },
-  { day: 'День 3', title: 'Сегодня', text: 'Персонаж ждёт твоего маленького шага.', done: false },
-];
+type View = 'init' | 'home' | 'interview' | 'loading' | 'profile' | 'task' | 'journey' | 'contacts';
 
 const Index = () => {
-  const [view, setView] = useState<'home' | 'interview' | 'loading' | 'profile' | 'task' | 'journey' | 'contacts'>('home');
-  const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
-  const [taskDone, setTaskDone] = useState(false);
-  const [character, setCharacter] = useState<Character | null>(null);
-  const [error, setError] = useState('');
+  const [view,      setView]      = useState<View>('init');
+  const [step,      setStep]      = useState(0);
+  const [answers,   setAnswers]   = useState<Record<number, string>>({});
+  const [error,     setError]     = useState('');
 
-  const current = QUESTIONS[step];
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [character,    setCharacter]    = useState<Character | null>(null);
+  const [todayTask,    setTodayTask]    = useState<TodayTask | null>(null);
+  const [journey,      setJourney]      = useState<JourneyEntry[]>([]);
+  const [taskDone,     setTaskDone]     = useState(false);
+
+  /* ── Инициализация: сессия и загрузка профиля ── */
+  useEffect(() => {
+    const init = async () => {
+      let token = localStorage.getItem('diagnomika_token');
+
+      if (!token) {
+        const res = await fetch(API_PROFILE, { method: 'POST' });
+        const data = await res.json();
+        token = data.session_token as string;
+        localStorage.setItem('diagnomika_token', token);
+      }
+
+      setSessionToken(token);
+
+      const res = await fetch(API_PROFILE, {
+        headers: { 'X-Session-Token': token },
+      });
+      const data = await res.json();
+
+      if (data.character) {
+        setCharacter({ ...data.character, task: data.today_task?.task_text || '' });
+        setTodayTask(data.today_task);
+        setTaskDone(data.today_task?.completed ?? false);
+        setJourney(data.journey || []);
+        setView('home');
+      } else {
+        setView('home');
+      }
+    };
+
+    init().catch(() => setView('home'));
+  }, []);
+
+  const current  = QUESTIONS[step];
   const progress = ((step + 1) / QUESTIONS.length) * 100;
 
-  const answer = (val: string) => {
-    setAnswers((p) => ({ ...p, [step]: val }));
-  };
+  const answer = (val: string) => setAnswers((p) => ({ ...p, [step]: val }));
 
   const generate = async () => {
     setError('');
     setView('loading');
     try {
-      const payload = {
-        answers: QUESTIONS.map((qq, i) => ({ q: qq.q, a: answers[i] || '' })),
-      };
-      const res = await fetch(CHARACTER_API, {
+      const payload = { answers: QUESTIONS.map((qq, i) => ({ q: qq.q, a: answers[i] || '' })) };
+      const res = await fetch(API_CHARACTER, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('bad response');
+      if (!res.ok) throw new Error('generate failed');
       const data: Character = await res.json();
       setCharacter(data);
       setTaskDone(false);
+
+      /* Сохраняем в БД */
+      if (sessionToken) {
+        await fetch(API_SAVE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+          body: JSON.stringify({ character: data, task: data.task }),
+        });
+
+        /* Обновляем историю */
+        const prof = await fetch(API_PROFILE, { headers: { 'X-Session-Token': sessionToken } });
+        const profData = await prof.json();
+        setJourney(profData.journey || []);
+        setTodayTask(profData.today_task);
+      }
+
       setView('profile');
     } catch {
       setError('Не удалось создать персонажа. Попробуй ещё раз.');
@@ -117,12 +154,58 @@ const Index = () => {
     setView('interview');
   };
 
+  const completeTask = async () => {
+    setTaskDone(true);
+    if (sessionToken) {
+      await fetch(API_COMPLETE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+        body: JSON.stringify({}),
+      });
+    }
+  };
+
+  const goTo = (id: string) => {
+    if (id === 'interview') startInterview();
+    else setView(id as View);
+  };
+
+  /* ── Данные для профиля ── */
+  const states = character
+    ? [
+        { name: 'Душа', icon: 'Heart',    value: character.soul, level: character.soul_level },
+        { name: 'Ум',   icon: 'Brain',    value: character.mind, level: character.mind_level },
+        { name: 'Тело', icon: 'Activity', value: character.body, level: character.body_level },
+      ]
+    : DEMO_STATES;
+
+  const charName = character ? `${character.name}, ${character.title}` : 'Альмар, Тихий Путник';
+  const charDesc = character?.description ||
+    'Он идёт по сумеречной тропе без спешки. В его глазах — усталость от лишнего шума и тихая надежда найти ясность.';
+  const charImg     = character?.image_url || CHARACTER_IMG;
+  const charStrength = character?.strength || 'Внутреннее спокойствие';
+  const charNeed    = character?.need || 'Быть услышанным';
+  const taskText    = character?.task || todayTask?.task_text ||
+    'Выпей стакан воды и 30 секунд поблагодари своё тело за то, что оно делает для тебя.';
+
+  /* ── Спиннер инициализации ── */
+  if (view === 'init') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="relative flex h-16 w-16 items-center justify-center">
+          <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-accent" />
+          <Icon name="Compass" size={24} className="text-accent" />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen relative bg-background grain">
-      {/* soft ambient glow */}
+    <div className="relative min-h-screen bg-background grain">
+      {/* ambient glow */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-32 h-[28rem] w-[28rem] rounded-full bg-accent/15 blur-3xl animate-breathe" />
-        <div className="absolute bottom-0 -left-24 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute -right-32 -top-40 h-[28rem] w-[28rem] animate-breathe rounded-full bg-accent/15 blur-3xl" />
+        <div className="absolute -left-24 bottom-0 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
       </div>
 
       {/* Header */}
@@ -137,7 +220,7 @@ const Index = () => {
           {NAV.slice(1).map((n) => (
             <button
               key={n.id}
-              onClick={() => setView(n.id as typeof view)}
+              onClick={() => goTo(n.id)}
               className={`rounded-full px-4 py-2 text-sm transition-colors ${
                 view === n.id ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground hover:text-foreground'
               }`}
@@ -149,9 +232,25 @@ const Index = () => {
       </header>
 
       <main className="relative z-10 mx-auto max-w-5xl px-6 pb-32">
+
         {/* HOME */}
         {view === 'home' && (
           <section className="flex flex-col items-center pt-12 text-center md:pt-20">
+            {character && (
+              <div className="animate-fade-in mb-8 flex items-center gap-3 rounded-2xl border border-border bg-card/70 px-5 py-3 backdrop-blur-sm">
+                <img src={charImg} alt="" className="h-10 w-10 rounded-full object-cover" />
+                <div className="text-left">
+                  <p className="text-sm font-medium">{character.name} ждёт тебя</p>
+                  <p className="text-xs text-muted-foreground">
+                    {taskDone ? 'Задание дня выполнено ✓' : 'Есть задание на сегодня'}
+                  </p>
+                </div>
+                <Button size="sm" variant="secondary" className="ml-2 rounded-full" onClick={() => setView('profile')}>
+                  Открыть
+                </Button>
+              </div>
+            )}
+
             <span className="animate-fade-in mb-6 rounded-full border border-border bg-card/60 px-4 py-1.5 text-sm text-muted-foreground">
               Персональный ИИ-навигатор образа жизни
             </span>
@@ -159,25 +258,30 @@ const Index = () => {
               Любой выбор, который ты делаешь, —{' '}
               <span className="italic text-accent">правильный</span>, потому что он твой.
             </h1>
-            <p className="animate-fade-in mt-8 max-w-xl text-lg leading-relaxed text-muted-foreground" style={{ animationDelay: '0.2s', opacity: 0 }}>
+            <p className="animate-fade-in mt-8 max-w-xl text-lg leading-relaxed text-muted-foreground"
+              style={{ animationDelay: '0.2s', opacity: 0 }}>
               Ты здесь, чтобы познакомиться с собой. Давай создадим твоего внутреннего
               персонажа, который отражает состояние твоей Души, Ума и Тела.
             </p>
-            <div className="animate-fade-in mt-10 flex flex-col gap-3 sm:flex-row" style={{ animationDelay: '0.35s', opacity: 0 }}>
+            <div className="animate-fade-in mt-10 flex flex-col gap-3 sm:flex-row"
+              style={{ animationDelay: '0.35s', opacity: 0 }}>
               <Button size="lg" onClick={startInterview} className="rounded-full px-8 text-base">
-                Создать персонажа
+                {character ? 'Обновить персонажа' : 'Создать персонажа'}
                 <Icon name="ArrowRight" size={18} className="ml-1" />
               </Button>
-              <Button size="lg" variant="ghost" onClick={() => setView('profile')} className="rounded-full px-8 text-base">
-                Посмотреть пример
-              </Button>
+              {character && (
+                <Button size="lg" variant="ghost" onClick={() => setView('profile')} className="rounded-full px-8 text-base">
+                  Мой персонаж
+                </Button>
+              )}
             </div>
 
-            <div className="animate-scale-in mt-20 grid w-full gap-4 sm:grid-cols-3" style={{ animationDelay: '0.5s', opacity: 0 }}>
+            <div className="animate-scale-in mt-20 grid w-full gap-4 sm:grid-cols-3"
+              style={{ animationDelay: '0.5s', opacity: 0 }}>
               {[
-                { icon: 'MessageCircleHeart', t: 'Короткое интервью', d: '7–10 вопросов о тебе настоящем' },
-                { icon: 'Sparkles', t: 'Твой персонаж', d: 'Образ внутреннего состояния' },
-                { icon: 'Footprints', t: 'Один шаг в день', d: 'Маленькое действие к себе' },
+                { icon: 'MessageCircleHeart', t: 'Короткое интервью', d: '9 вопросов о тебе настоящем' },
+                { icon: 'Sparkles',           t: 'Твой персонаж',     d: 'Уникальный образ внутреннего состояния' },
+                { icon: 'Footprints',         t: 'Один шаг в день',   d: 'Маленькое действие к себе' },
               ].map((c) => (
                 <div key={c.t} className="rounded-3xl border border-border bg-card/70 p-6 text-left backdrop-blur-sm">
                   <Icon name={c.icon} size={24} className="text-accent" />
@@ -208,15 +312,12 @@ const Index = () => {
               {current.options ? (
                 <div className="mt-8 flex flex-wrap gap-3">
                   {current.options.map((o) => (
-                    <button
-                      key={o}
-                      onClick={() => answer(o)}
+                    <button key={o} onClick={() => answer(o)}
                       className={`rounded-full border px-5 py-3 text-base transition-all ${
                         answers[step] === o
                           ? 'border-accent bg-accent text-accent-foreground'
                           : 'border-border bg-card/60 hover:border-accent/50'
-                      }`}
-                    >
+                      }`}>
                       {o}
                     </button>
                   ))}
@@ -231,12 +332,7 @@ const Index = () => {
               )}
 
               <div className="mt-10 flex items-center justify-between">
-                <Button
-                  variant="ghost"
-                  disabled={step === 0}
-                  onClick={() => setStep((s) => s - 1)}
-                  className="rounded-full"
-                >
+                <Button variant="ghost" disabled={step === 0} onClick={() => setStep((s) => s - 1)} className="rounded-full">
                   <Icon name="ArrowLeft" size={18} className="mr-1" /> Назад
                 </Button>
                 <Button onClick={next} disabled={!answers[step]} className="rounded-full px-8">
@@ -253,7 +349,7 @@ const Index = () => {
         {view === 'loading' && (
           <section className="flex min-h-[60vh] flex-col items-center justify-center text-center">
             <div className="relative flex h-28 w-28 items-center justify-center">
-              <div className="absolute inset-0 rounded-full bg-accent/20 blur-xl animate-breathe" />
+              <div className="absolute inset-0 animate-breathe rounded-full bg-accent/20 blur-xl" />
               <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-accent" />
               <Icon name="Sparkles" size={32} className="text-accent" />
             </div>
@@ -267,34 +363,17 @@ const Index = () => {
         )}
 
         {/* PROFILE */}
-        {view === 'profile' && (() => {
-          const states = character
-            ? [
-                { name: 'Душа', icon: 'Heart', value: character.soul, level: character.soul_level },
-                { name: 'Ум', icon: 'Brain', value: character.mind, level: character.mind_level },
-                { name: 'Тело', icon: 'Activity', value: character.body, level: character.body_level },
-              ]
-            : STATES;
-          const img = character?.image_url || CHARACTER_IMG;
-          const name = character ? `${character.name}, ${character.title}` : 'Альмар, Тихий Путник';
-          const desc = character?.description ||
-            'Он идёт по сумеречной тропе без спешки. В его глазах — усталость от лишнего шума и тихая надежда найти ясность. Он не потерян, он ищет.';
-          const strength = character?.strength || 'Внутреннее спокойствие';
-          const need = character?.need || 'Быть услышанным';
-          return (
+        {view === 'profile' && (
           <section className="grid gap-10 pt-8 md:grid-cols-2 md:items-center">
             <div className="animate-scale-in relative">
               <div className="absolute -inset-4 rounded-[2rem] bg-accent/15 blur-2xl" />
-              <img
-                src={img}
-                alt="Внутренний персонаж"
-                className="relative aspect-[4/5] w-full rounded-[2rem] object-cover shadow-2xl"
-              />
+              <img src={charImg} alt="Внутренний персонаж"
+                className="relative aspect-[4/5] w-full rounded-[2rem] object-cover shadow-2xl" />
             </div>
             <div className="animate-fade-in">
               <span className="text-sm uppercase tracking-widest text-muted-foreground">Твой персонаж</span>
-              <h2 className="mt-2 font-display text-5xl font-medium tracking-tight">{name}</h2>
-              <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{desc}</p>
+              <h2 className="mt-2 font-display text-5xl font-medium tracking-tight">{charName}</h2>
+              <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{charDesc}</p>
 
               <div className="mt-8 space-y-4">
                 {states.map((s) => (
@@ -307,7 +386,7 @@ const Index = () => {
                       <span className="text-sm text-muted-foreground">{s.value}</span>
                     </div>
                     <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full rounded-full bg-accent" style={{ width: `${s.level}%` }} />
+                      <div className="h-full rounded-full bg-accent transition-all duration-700" style={{ width: `${s.level}%` }} />
                     </div>
                   </div>
                 ))}
@@ -316,52 +395,42 @@ const Index = () => {
               <div className="mt-6 grid grid-cols-2 gap-4">
                 <div className="rounded-2xl border border-border bg-card/70 p-4">
                   <span className="text-xs uppercase tracking-wide text-muted-foreground">Сильная сторона</span>
-                  <p className="mt-1 font-display text-lg">{strength}</p>
+                  <p className="mt-1 font-display text-lg">{charStrength}</p>
                 </div>
                 <div className="rounded-2xl border border-border bg-card/70 p-4">
                   <span className="text-xs uppercase tracking-wide text-muted-foreground">Скрытая потребность</span>
-                  <p className="mt-1 font-display text-lg">{need}</p>
+                  <p className="mt-1 font-display text-lg">{charNeed}</p>
                 </div>
               </div>
 
               <Button size="lg" onClick={() => setView('task')} className="mt-8 w-full rounded-full text-base">
-                Получить задание дня <Icon name="ArrowRight" size={18} className="ml-1" />
+                Задание дня <Icon name="ArrowRight" size={18} className="ml-1" />
               </Button>
             </div>
           </section>
-          );
-        })()}
+        )}
 
         {/* TASK */}
         {view === 'task' && (
           <section className="mx-auto max-w-2xl pt-12 text-center">
-            <span className="text-sm uppercase tracking-widest text-muted-foreground">Один день · Одна задача · Один результат</span>
+            <span className="text-sm uppercase tracking-widest text-muted-foreground">
+              Один день · Одна задача · Один результат
+            </span>
             <h2 className="mt-4 font-display text-4xl font-medium md:text-5xl">Задание дня</h2>
             <div className="animate-scale-in mt-10 rounded-[2rem] border border-border bg-card/80 p-10 shadow-xl">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/15">
                 <Icon name="GlassWater" size={30} className="text-accent" />
               </div>
-              <p className="mt-6 font-display text-2xl leading-snug md:text-3xl">
-                {character?.task ||
-                  'Выпей стакан воды и 30 секунд поблагодари своё тело за то, что оно делает для тебя.'}
-              </p>
-              <Button
-                size="lg"
-                onClick={() => setTaskDone(true)}
-                disabled={taskDone}
-                className="mt-8 rounded-full px-10 text-base"
-              >
-                {taskDone ? (
-                  <>
-                    <Icon name="Check" size={18} className="mr-1" /> Выполнено сегодня
-                  </>
-                ) : (
-                  'Я сделал это'
-                )}
+              <p className="mt-6 font-display text-2xl leading-snug md:text-3xl">{taskText}</p>
+              <Button size="lg" onClick={completeTask} disabled={taskDone}
+                className="mt-8 rounded-full px-10 text-base">
+                {taskDone
+                  ? <><Icon name="Check" size={18} className="mr-1" /> Выполнено сегодня</>
+                  : 'Я сделал это'}
               </Button>
               {taskDone && (
                 <p className="animate-fade-in mt-6 text-muted-foreground">
-                  {character?.name || 'Альмар'} стал чуть ярче. Возвращайся завтра — путь продолжится.
+                  {character?.name || 'Персонаж'} стал чуть ярче. Возвращайся завтра — путь продолжится.
                 </p>
               )}
             </div>
@@ -373,24 +442,35 @@ const Index = () => {
           <section className="mx-auto max-w-2xl pt-12">
             <h2 className="font-display text-4xl font-medium md:text-5xl">История развития</h2>
             <p className="mt-3 text-muted-foreground">Каждый день оставляет след на пути твоего персонажа.</p>
-            <div className="relative mt-10 space-y-6 border-l border-border pl-8">
-              {JOURNEY.map((j) => (
-                <div key={j.day} className="relative animate-fade-in">
-                  <span
-                    className={`absolute -left-[2.6rem] flex h-6 w-6 items-center justify-center rounded-full ${
-                      j.done ? 'bg-accent text-accent-foreground' : 'border border-border bg-card'
-                    }`}
-                  >
-                    {j.done && <Icon name="Check" size={14} />}
-                  </span>
-                  <div className="rounded-2xl border border-border bg-card/70 p-5">
-                    <span className="text-xs uppercase tracking-wide text-muted-foreground">{j.day}</span>
-                    <h3 className="mt-1 font-display text-xl font-semibold">{j.title}</h3>
-                    <p className="mt-1 text-muted-foreground">{j.text}</p>
+
+            {journey.length === 0 ? (
+              <div className="mt-12 rounded-3xl border border-border bg-card/70 p-10 text-center">
+                <Icon name="Footprints" size={32} className="mx-auto text-muted-foreground" />
+                <p className="mt-4 text-muted-foreground">
+                  История начнётся, как только ты создашь своего персонажа.
+                </p>
+                <Button className="mt-6 rounded-full" onClick={startInterview}>Начать путь</Button>
+              </div>
+            ) : (
+              <div className="relative mt-10 space-y-6 border-l border-border pl-8">
+                {journey.map((j, idx) => (
+                  <div key={j.day_number} className="relative animate-fade-in">
+                    <span className={`absolute -left-[2.6rem] flex h-6 w-6 items-center justify-center rounded-full ${
+                      idx < journey.length - 1 ? 'bg-accent text-accent-foreground' : 'border border-border bg-card'
+                    }`}>
+                      {idx < journey.length - 1 && <Icon name="Check" size={14} />}
+                    </span>
+                    <div className="rounded-2xl border border-border bg-card/70 p-5">
+                      <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                        День {j.day_number} · {j.task_date}
+                      </span>
+                      <h3 className="mt-1 font-display text-xl font-semibold">{j.title}</h3>
+                      <p className="mt-1 text-muted-foreground">{j.text}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
 
@@ -416,18 +496,16 @@ const Index = () => {
             <Button size="lg" className="mt-8 rounded-full px-8">Написать нам</Button>
           </section>
         )}
+
       </main>
 
       {/* Mobile bottom nav */}
       <nav className="fixed bottom-4 left-1/2 z-30 flex -translate-x-1/2 gap-1 rounded-full border border-border bg-card/90 px-2 py-2 shadow-lg backdrop-blur md:hidden">
         {NAV.map((n) => (
-          <button
-            key={n.id}
-            onClick={() => (n.id === 'interview' ? startInterview() : setView(n.id as typeof view))}
+          <button key={n.id} onClick={() => goTo(n.id)}
             className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
               view === n.id ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
-            }`}
-          >
+            }`}>
             <Icon name={n.icon} size={20} />
           </button>
         ))}
