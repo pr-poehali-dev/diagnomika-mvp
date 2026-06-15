@@ -382,52 +382,76 @@ const Index = () => {
 
         {/* INTERVIEW */}
         {view === 'interview' && (
-          <section className="mx-auto max-w-2xl pt-10">
-            <div className="mb-10">
-              <div className="mb-3 flex items-center justify-between text-sm text-muted-foreground">
+          <section className="pt-8">
+            {/* progress */}
+            <div className="mx-auto mb-8 max-w-3xl">
+              <div className="mb-2 flex items-center justify-between text-sm text-muted-foreground">
                 <span>Вопрос {step + 1} из {QUESTIONS.length}</span>
-                <button onClick={() => setView('home')} className="hover:text-foreground">Выйти</button>
+                <button onClick={() => setView('home')} className="hover:text-foreground transition-colors">Выйти</button>
               </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+              <div className="h-1 w-full overflow-hidden rounded-full bg-secondary">
                 <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${progress}%` }} />
               </div>
             </div>
 
-            <div key={step} className="animate-fade-in">
-              <h2 className="font-display text-3xl font-medium leading-tight md:text-4xl">{current.q}</h2>
+            <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 md:flex-row md:items-end">
 
-              {current.options ? (
-                <div className="mt-8 flex flex-wrap gap-3">
-                  {current.options.map((o) => (
-                    <button key={o} onClick={() => answer(o)}
-                      className={`rounded-full border px-5 py-3 text-base transition-all ${
-                        answers[step] === o
-                          ? 'border-accent bg-accent text-accent-foreground'
-                          : 'border-border bg-card/60 hover:border-accent/50'
-                      }`}>
-                      {o}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <Textarea
-                  value={answers[step] || ''}
-                  onChange={(e) => answer(e.target.value)}
-                  placeholder={current.placeholder}
-                  className="mt-8 min-h-32 resize-none rounded-2xl border-border bg-card/60 p-5 text-base"
+              {/* Happy — маленький, снизу */}
+              <div className="relative flex-shrink-0 w-40 md:w-52">
+                <div className="absolute inset-0 rounded-full bg-amber-300/25 blur-2xl animate-breathe" />
+                <img
+                  src={HAPPY_IMG}
+                  alt="Happy"
+                  key={step}
+                  className="relative w-full drop-shadow-xl animate-scale-in"
+                  style={{ filter: 'drop-shadow(0 0 24px rgba(251,191,36,0.3))' }}
                 />
-              )}
-
-              <div className="mt-10 flex items-center justify-between">
-                <Button variant="ghost" disabled={step === 0} onClick={() => setStep((s) => s - 1)} className="rounded-full">
-                  <Icon name="ArrowLeft" size={18} className="mr-1" /> Назад
-                </Button>
-                <Button onClick={next} disabled={!answers[step]} className="rounded-full px-8">
-                  {step === QUESTIONS.length - 1 ? 'Создать персонажа' : 'Дальше'}
-                  <Icon name="ArrowRight" size={18} className="ml-1" />
-                </Button>
               </div>
-              {error && <p className="mt-6 text-center text-sm text-destructive">{error}</p>}
+
+              {/* Question card */}
+              <div key={step} className="animate-fade-in flex-1">
+                {/* Speech bubble */}
+                <div className="relative mb-6 rounded-3xl rounded-bl-none border border-border bg-card/80 p-6 shadow-sm backdrop-blur-sm">
+                  <div className="absolute -bottom-3 left-6 h-4 w-4 rotate-45 border-b border-l border-border bg-card/80" />
+                  <p className="font-display text-2xl font-medium leading-snug md:text-3xl">
+                    {current.q}
+                  </p>
+                </div>
+
+                {/* Answer area */}
+                {current.options ? (
+                  <div className="flex flex-wrap gap-3">
+                    {current.options.map((o) => (
+                      <button key={o} onClick={() => answer(o)}
+                        className={`rounded-full border px-5 py-3 text-base transition-all ${
+                          answers[step] === o
+                            ? 'border-accent bg-accent text-accent-foreground shadow-sm'
+                            : 'border-border bg-card/60 hover:border-accent/60 hover:bg-card'
+                        }`}>
+                        {o}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <Textarea
+                    value={answers[step] || ''}
+                    onChange={(e) => answer(e.target.value)}
+                    placeholder={current.placeholder}
+                    className="min-h-28 resize-none rounded-2xl border-border bg-card/60 p-5 text-base"
+                  />
+                )}
+
+                <div className="mt-8 flex items-center justify-between">
+                  <Button variant="ghost" disabled={step === 0} onClick={() => setStep((s) => s - 1)} className="rounded-full">
+                    <Icon name="ArrowLeft" size={18} className="mr-1" /> Назад
+                  </Button>
+                  <Button onClick={next} disabled={!answers[step]} className="rounded-full px-8">
+                    {step === QUESTIONS.length - 1 ? 'Создать персонажа' : 'Дальше'}
+                    <Icon name="ArrowRight" size={18} className="ml-1" />
+                  </Button>
+                </div>
+                {error && <p className="mt-4 text-center text-sm text-destructive">{error}</p>}
+              </div>
             </div>
           </section>
         )}
@@ -435,17 +459,30 @@ const Index = () => {
         {/* LOADING */}
         {view === 'loading' && (
           <section className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-            <div className="relative flex h-28 w-28 items-center justify-center">
-              <div className="absolute inset-0 animate-breathe rounded-full bg-accent/20 blur-xl" />
-              <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-accent" />
-              <Icon name="Sparkles" size={32} className="text-accent" />
+            <div className="relative w-48 md:w-56">
+              <div className="absolute inset-0 rounded-full bg-amber-300/30 blur-3xl animate-breathe" />
+              <img
+                src={HAPPY_IMG}
+                alt="Happy думает…"
+                className="relative w-full drop-shadow-2xl"
+                style={{
+                  filter: 'drop-shadow(0 0 32px rgba(251,191,36,0.4))',
+                  animation: 'breathe 2s ease-in-out infinite',
+                }}
+              />
             </div>
-            <h2 className="animate-fade-in mt-10 font-display text-3xl font-medium md:text-4xl">
-              Твой персонаж рождается…
+            <h2 className="mt-8 font-display text-3xl font-medium md:text-4xl">
+              Ищу твоего персонажа…
             </h2>
-            <p className="animate-fade-in mt-3 max-w-sm text-muted-foreground">
-              Я слушаю твои ответы и собираю образ Души, Ума и Тела. Это займёт около минуты.
+            <p className="mt-3 max-w-sm text-muted-foreground">
+              Happy уже чувствует, кто живёт внутри тебя. Ещё немного — и он появится.
             </p>
+            <div className="mt-6 flex gap-1.5">
+              {[0,1,2].map(i => (
+                <div key={i} className="h-2 w-2 rounded-full bg-accent"
+                  style={{ animation: `breathe 1.2s ease-in-out ${i * 0.2}s infinite` }} />
+              ))}
+            </div>
           </section>
         )}
 
