@@ -1,10 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Icon from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 
 const CHARACTER_IMG =
   'https://cdn.poehali.dev/projects/cb7818a8-cd7f-40ae-8055-7881cf09d17e/files/763ee90f-b510-426b-9358-16a0289dc20e.jpg';
+
+const HAPPY_IMG =
+  'https://cdn.poehali.dev/projects/cb7818a8-cd7f-40ae-8055-7881cf09d17e/bucket/d73b18e4-c011-4ee3-9799-f70f51e71808.png';
+
+const STORY_LINES = [
+  'Привет 👋',
+  'Меня зовут Happy.',
+  'Когда-то Артём начал искать ответ на простой вопрос:',
+  '«Почему одни люди живут своей жизнью, а другие постоянно пытаются стать кем-то ещё?»',
+  'Много лет он наблюдал за людьми, изучал тело, разум и душу, искал закономерности — и однажды заметил меня.',
+  'Я — его внутренний персонаж.',
+  'Я та часть, которая любит жить, исследовать мир, радоваться мелочам и напоминать, что жизнь — это не только цели и достижения.',
+  'Так появилась Диагномика.',
+  'Теперь пришло время познакомиться с твоим внутренним персонажем.',
+  'Он уже есть внутри тебя.',
+  'Возможно, ты давно его не слышал.',
+  'Возможно, наоборот, он постоянно пытается тебе что-то подсказать.',
+  'Давай найдём его вместе.',
+  'Мне понадобится всего несколько вопросов.',
+  'Готов начать своё путешествие?',
+];
 
 const API_CHARACTER  = 'https://functions.poehali.dev/a58d3f5f-8515-48c8-8cb1-da5d37e5aebf';
 const API_PROFILE    = 'https://functions.poehali.dev/b8c6c54b-942a-4314-bae3-b90842bc1bce';
@@ -67,6 +88,11 @@ const Index = () => {
   const [journey,      setJourney]      = useState<JourneyEntry[]>([]);
   const [taskDone,     setTaskDone]     = useState(false);
 
+  /* story state */
+  const [visibleLines, setVisibleLines] = useState(0);
+  const [storyDone,    setStoryDone]    = useState(false);
+  const storyRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   /* ── Инициализация: сессия и загрузка профиля ── */
   useEffect(() => {
     const init = async () => {
@@ -99,6 +125,23 @@ const Index = () => {
 
     init().catch(() => setView('home'));
   }, []);
+
+  /* Story auto-play */
+  useEffect(() => {
+    if (view !== 'home') return;
+    setVisibleLines(0);
+    setStoryDone(false);
+    let idx = 0;
+    storyRef.current = setInterval(() => {
+      idx += 1;
+      setVisibleLines(idx);
+      if (idx >= STORY_LINES.length) {
+        clearInterval(storyRef.current!);
+        setStoryDone(true);
+      }
+    }, 600);
+    return () => { if (storyRef.current) clearInterval(storyRef.current); };
+  }, [view]);
 
   const current  = QUESTIONS[step];
   const progress = ((step + 1) / QUESTIONS.length) * 100;
@@ -235,60 +278,104 @@ const Index = () => {
 
         {/* HOME */}
         {view === 'home' && (
-          <section className="flex flex-col items-center pt-12 text-center md:pt-20">
+          <section className="mx-auto flex max-w-4xl flex-col items-center pt-8 md:pt-12">
+
+            {/* returning user banner */}
             {character && (
-              <div className="animate-fade-in mb-8 flex items-center gap-3 rounded-2xl border border-border bg-card/70 px-5 py-3 backdrop-blur-sm">
+              <div className="animate-fade-in mb-8 flex w-full items-center gap-3 rounded-2xl border border-border bg-card/70 px-5 py-3 backdrop-blur-sm">
                 <img src={charImg} alt="" className="h-10 w-10 rounded-full object-cover" />
-                <div className="text-left">
+                <div className="flex-1 text-left">
                   <p className="text-sm font-medium">{character.name} ждёт тебя</p>
                   <p className="text-xs text-muted-foreground">
                     {taskDone ? 'Задание дня выполнено ✓' : 'Есть задание на сегодня'}
                   </p>
                 </div>
-                <Button size="sm" variant="secondary" className="ml-2 rounded-full" onClick={() => setView('profile')}>
+                <Button size="sm" variant="secondary" className="rounded-full" onClick={() => setView('profile')}>
                   Открыть
                 </Button>
               </div>
             )}
 
-            <span className="animate-fade-in mb-6 rounded-full border border-border bg-card/60 px-4 py-1.5 text-sm text-muted-foreground">
-              Персональный ИИ-навигатор образа жизни
-            </span>
-            <h1 className="animate-fade-in-slow max-w-3xl font-display text-5xl font-medium leading-[1.05] tracking-tight md:text-7xl">
-              Любой выбор, который ты делаешь, —{' '}
-              <span className="italic text-accent">правильный</span>, потому что он твой.
-            </h1>
-            <p className="animate-fade-in mt-8 max-w-xl text-lg leading-relaxed text-muted-foreground"
-              style={{ animationDelay: '0.2s', opacity: 0 }}>
-              Ты здесь, чтобы познакомиться с собой. Давай создадим твоего внутреннего
-              персонажа, который отражает состояние твоей Души, Ума и Тела.
-            </p>
-            <div className="animate-fade-in mt-10 flex flex-col gap-3 sm:flex-row"
-              style={{ animationDelay: '0.35s', opacity: 0 }}>
-              <Button size="lg" onClick={startInterview} className="rounded-full px-8 text-base">
-                {character ? 'Обновить персонажа' : 'Создать персонажа'}
-                <Icon name="ArrowRight" size={18} className="ml-1" />
-              </Button>
-              {character && (
-                <Button size="lg" variant="ghost" onClick={() => setView('profile')} className="rounded-full px-8 text-base">
-                  Мой персонаж
-                </Button>
-              )}
-            </div>
+            {/* Two-column layout: Happy + story */}
+            <div className="flex w-full flex-col items-center gap-8 md:flex-row md:items-end md:gap-12">
 
-            <div className="animate-scale-in mt-20 grid w-full gap-4 sm:grid-cols-3"
-              style={{ animationDelay: '0.5s', opacity: 0 }}>
-              {[
-                { icon: 'MessageCircleHeart', t: 'Короткое интервью', d: '9 вопросов о тебе настоящем' },
-                { icon: 'Sparkles',           t: 'Твой персонаж',     d: 'Уникальный образ внутреннего состояния' },
-                { icon: 'Footprints',         t: 'Один шаг в день',   d: 'Маленькое действие к себе' },
-              ].map((c) => (
-                <div key={c.t} className="rounded-3xl border border-border bg-card/70 p-6 text-left backdrop-blur-sm">
-                  <Icon name={c.icon} size={24} className="text-accent" />
-                  <h3 className="mt-4 font-display text-xl font-semibold">{c.t}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{c.d}</p>
+              {/* Happy image */}
+              <div className="relative flex-shrink-0 w-64 md:w-80">
+                <div className="absolute inset-0 rounded-full bg-amber-300/30 blur-3xl animate-breathe" />
+                <img
+                  src={HAPPY_IMG}
+                  alt="Happy — внутренний персонаж"
+                  className="relative w-full drop-shadow-2xl"
+                  style={{ filter: 'drop-shadow(0 0 40px rgba(251,191,36,0.35))' }}
+                />
+              </div>
+
+              {/* Story lines */}
+              <div className="flex-1 pb-4">
+                <div className="space-y-3">
+                  {STORY_LINES.map((line, i) => {
+                    const isVisible = i < visibleLines;
+                    const isGreeting = i === 0;
+                    const isQuestion = line.startsWith('«') || line.startsWith('Готов');
+                    const isName = i === 1;
+                    return (
+                      <p
+                        key={i}
+                        style={{
+                          opacity: isVisible ? 1 : 0,
+                          transform: isVisible ? 'translateY(0)' : 'translateY(10px)',
+                          transition: 'opacity 0.5s ease, transform 0.5s ease',
+                        }}
+                        className={
+                          isGreeting
+                            ? 'font-display text-3xl font-semibold md:text-4xl'
+                            : isName
+                            ? 'font-display text-2xl font-medium text-accent md:text-3xl'
+                            : isQuestion
+                            ? 'font-display text-xl italic text-accent/80 md:text-2xl'
+                            : 'text-lg leading-relaxed text-foreground/80 md:text-xl'
+                        }
+                      >
+                        {line}
+                      </p>
+                    );
+                  })}
                 </div>
-              ))}
+
+                {/* CTA — появляется после последней строки */}
+                <div
+                  style={{
+                    opacity: storyDone ? 1 : 0,
+                    transform: storyDone ? 'translateY(0)' : 'translateY(16px)',
+                    transition: 'opacity 0.7s ease 0.2s, transform 0.7s ease 0.2s',
+                  }}
+                  className="mt-10 flex flex-col gap-3 sm:flex-row"
+                >
+                  <Button size="lg" onClick={startInterview} className="rounded-full px-10 text-base">
+                    {character ? 'Обновить персонажа' : 'Да, поехали!'}
+                    <Icon name="ArrowRight" size={18} className="ml-2" />
+                  </Button>
+                  {character && (
+                    <Button size="lg" variant="ghost" onClick={() => setView('profile')} className="rounded-full px-8 text-base">
+                      Мой персонаж
+                    </Button>
+                  )}
+                </div>
+
+                {/* skip */}
+                {!storyDone && (
+                  <button
+                    onClick={() => {
+                      if (storyRef.current) clearInterval(storyRef.current);
+                      setVisibleLines(STORY_LINES.length);
+                      setStoryDone(true);
+                    }}
+                    className="mt-6 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+                  >
+                    Пропустить
+                  </button>
+                )}
+              </div>
             </div>
           </section>
         )}
