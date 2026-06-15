@@ -270,10 +270,10 @@ const Index = () => {
   const taskSubcategory = taskData?.subcategory || todayTask?.subcategory || '';
   const taskWhy = taskData?.why || '';
 
-  const CATEGORY_META: Record<string, { label: string; icon: string; color: string }> = {
-    body: { label: 'Тело',  icon: 'Activity', color: 'text-emerald-500' },
-    mind: { label: 'Ум',    icon: 'Brain',    color: 'text-blue-500'    },
-    soul: { label: 'Душа',  icon: 'Heart',    color: 'text-violet-500'  },
+  const CATEGORY_META: Record<string, { label: string; icon: string; color: string; bg: string }> = {
+    body: { label: 'Тело',  icon: 'Activity', color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-100' },
+    mind: { label: 'Ум',    icon: 'Brain',    color: 'text-blue-600',    bg: 'bg-blue-50 border-blue-100'       },
+    soul: { label: 'Душа',  icon: 'Heart',    color: 'text-violet-600',  bg: 'bg-violet-50 border-violet-100'   },
   };
 
   /* ── Спиннер инициализации ── */
@@ -718,15 +718,15 @@ const Index = () => {
                   </div>
                 </div>
 
-                {/* Категория */}
+                {/* Бейдж сферы + направление */}
                 {!taskDone && (
-                  <div className="flex items-center gap-2 px-1">
+                  <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 ${CATEGORY_META[taskCategory]?.bg || 'bg-violet-50 border-violet-100'}`}>
                     <Icon
                       name={CATEGORY_META[taskCategory]?.icon || 'Heart'}
-                      size={14}
-                      className={CATEGORY_META[taskCategory]?.color || 'text-accent'}
+                      size={13}
+                      className={CATEGORY_META[taskCategory]?.color || 'text-violet-600'}
                     />
-                    <span className={`text-xs font-medium uppercase tracking-wider ${CATEGORY_META[taskCategory]?.color || 'text-accent'}`}>
+                    <span className={`text-xs font-semibold ${CATEGORY_META[taskCategory]?.color || 'text-violet-600'}`}>
                       {CATEGORY_META[taskCategory]?.label || 'Душа'}
                       {taskSubcategory ? ` · ${taskSubcategory}` : ''}
                     </span>
@@ -739,7 +739,7 @@ const Index = () => {
 
                   {/* Почему именно это */}
                   {taskWhy && !taskDone && (
-                    <p className="mt-4 text-sm italic text-muted-foreground border-l-2 border-accent/40 pl-3">
+                    <p className="mt-5 text-sm italic text-muted-foreground border-l-2 border-accent/30 pl-3 leading-relaxed">
                       {taskWhy}
                     </p>
                   )}
@@ -780,6 +780,24 @@ const Index = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Колесо баланса — свёрнутый блок */}
+                <details className="group rounded-2xl border border-border bg-card/60 overflow-hidden">
+                  <summary className="flex cursor-pointer items-center justify-between px-5 py-3.5 text-sm text-muted-foreground hover:text-foreground transition-colors list-none">
+                    <div className="flex items-center gap-2">
+                      <Icon name="CircleDot" size={15} />
+                      <span>Колесо баланса Диагномики</span>
+                    </div>
+                    <Icon name="ChevronDown" size={15} className="transition-transform group-open:rotate-180" />
+                  </summary>
+                  <div className="px-4 pb-4">
+                    <img
+                      src="https://cdn.poehali.dev/projects/cb7818a8-cd7f-40ae-8055-7881cf09d17e/bucket/dc89d26c-7399-455a-93a4-3cff11da8156.png"
+                      alt="Колесо баланса Диагномики"
+                      className="w-full rounded-xl"
+                    />
+                  </div>
+                </details>
 
                 <Button variant="ghost" onClick={() => setView('profile')} className="w-full rounded-full text-muted-foreground">
                   <Icon name="ArrowLeft" size={16} className="mr-1" /> Вернуться к персонажу
