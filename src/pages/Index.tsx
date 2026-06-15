@@ -6,6 +6,25 @@ import { Textarea } from '@/components/ui/textarea';
 const CHARACTER_IMG =
   'https://cdn.poehali.dev/projects/cb7818a8-cd7f-40ae-8055-7881cf09d17e/files/763ee90f-b510-426b-9358-16a0289dc20e.jpg';
 
+const CHARACTER_API = 'https://functions.poehali.dev/a58d3f5f-8515-48c8-8cb1-da5d37e5aebf';
+
+type Character = {
+  name: string;
+  title: string;
+  description: string;
+  soul: string;
+  soul_level: number;
+  mind: string;
+  mind_level: number;
+  body: string;
+  body_level: number;
+  strength: string;
+  need: string;
+  story: string;
+  task: string;
+  image_url: string;
+};
+
 const QUESTIONS = [
   { q: 'Как ты чувствуешь себя сегодня?', placeholder: 'Опиши своё состояние одной-двумя фразами…' },
   { q: 'Что сейчас больше всего занимает твои мысли?', placeholder: 'О чём ты думаешь чаще всего…' },
@@ -49,10 +68,12 @@ const JOURNEY = [
 ];
 
 const Index = () => {
-  const [view, setView] = useState<'home' | 'interview' | 'profile' | 'task' | 'journey' | 'contacts'>('home');
+  const [view, setView] = useState<'home' | 'interview' | 'loading' | 'profile' | 'task' | 'journey' | 'contacts'>('home');
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [taskDone, setTaskDone] = useState(false);
+  const [character, setCharacter] = useState<Character | null>(null);
+  const [error, setError] = useState('');
 
   const current = QUESTIONS[step];
   const progress = ((step + 1) / QUESTIONS.length) * 100;
@@ -61,14 +82,38 @@ const Index = () => {
     setAnswers((p) => ({ ...p, [step]: val }));
   };
 
+  const generate = async () => {
+    setError('');
+    setView('loading');
+    try {
+      const payload = {
+        answers: QUESTIONS.map((qq, i) => ({ q: qq.q, a: answers[i] || '' })),
+      };
+      const res = await fetch(CHARACTER_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('bad response');
+      const data: Character = await res.json();
+      setCharacter(data);
+      setTaskDone(false);
+      setView('profile');
+    } catch {
+      setError('Не удалось создать персонажа. Попробуй ещё раз.');
+      setView('interview');
+    }
+  };
+
   const next = () => {
     if (step < QUESTIONS.length - 1) setStep((s) => s + 1);
-    else setView('profile');
+    else generate();
   };
 
   const startInterview = () => {
     setStep(0);
     setAnswers({});
+    setError('');
     setView('interview');
   };
 
@@ -199,31 +244,60 @@ const Index = () => {
                   <Icon name="ArrowRight" size={18} className="ml-1" />
                 </Button>
               </div>
+              {error && <p className="mt-6 text-center text-sm text-destructive">{error}</p>}
             </div>
           </section>
         )}
 
+        {/* LOADING */}
+        {view === 'loading' && (
+          <section className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+            <div className="relative flex h-28 w-28 items-center justify-center">
+              <div className="absolute inset-0 rounded-full bg-accent/20 blur-xl animate-breathe" />
+              <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-accent" />
+              <Icon name="Sparkles" size={32} className="text-accent" />
+            </div>
+            <h2 className="animate-fade-in mt-10 font-display text-3xl font-medium md:text-4xl">
+              Твой персонаж рождается…
+            </h2>
+            <p className="animate-fade-in mt-3 max-w-sm text-muted-foreground">
+              Я слушаю твои ответы и собираю образ Души, Ума и Тела. Это займёт около минуты.
+            </p>
+          </section>
+        )}
+
         {/* PROFILE */}
-        {view === 'profile' && (
+        {view === 'profile' && (() => {
+          const states = character
+            ? [
+                { name: 'Душа', icon: 'Heart', value: character.soul, level: character.soul_level },
+                { name: 'Ум', icon: 'Brain', value: character.mind, level: character.mind_level },
+                { name: 'Тело', icon: 'Activity', value: character.body, level: character.body_level },
+              ]
+            : STATES;
+          const img = character?.image_url || CHARACTER_IMG;
+          const name = character ? `${character.name}, ${character.title}` : 'Альмар, Тихий Путник';
+          const desc = character?.description ||
+            'Он идёт по сумеречной тропе без спешки. В его глазах — усталость от лишнего шума и тихая надежда найти ясность. Он не потерян, он ищет.';
+          const strength = character?.strength || 'Внутреннее спокойствие';
+          const need = character?.need || 'Быть услышанным';
+          return (
           <section className="grid gap-10 pt-8 md:grid-cols-2 md:items-center">
             <div className="animate-scale-in relative">
               <div className="absolute -inset-4 rounded-[2rem] bg-accent/15 blur-2xl" />
               <img
-                src={CHARACTER_IMG}
+                src={img}
                 alt="Внутренний персонаж"
                 className="relative aspect-[4/5] w-full rounded-[2rem] object-cover shadow-2xl"
               />
             </div>
             <div className="animate-fade-in">
               <span className="text-sm uppercase tracking-widest text-muted-foreground">Твой персонаж</span>
-              <h2 className="mt-2 font-display text-5xl font-medium tracking-tight">Альмар, Тихий Путник</h2>
-              <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-                Он идёт по сумеречной тропе без спешки. В его глазах — усталость от лишнего шума
-                и тихая надежда найти ясность. Он не потерян, он ищет.
-              </p>
+              <h2 className="mt-2 font-display text-5xl font-medium tracking-tight">{name}</h2>
+              <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{desc}</p>
 
               <div className="mt-8 space-y-4">
-                {STATES.map((s) => (
+                {states.map((s) => (
                   <div key={s.name} className="rounded-2xl border border-border bg-card/70 p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -242,11 +316,11 @@ const Index = () => {
               <div className="mt-6 grid grid-cols-2 gap-4">
                 <div className="rounded-2xl border border-border bg-card/70 p-4">
                   <span className="text-xs uppercase tracking-wide text-muted-foreground">Сильная сторона</span>
-                  <p className="mt-1 font-display text-lg">Внутреннее спокойствие</p>
+                  <p className="mt-1 font-display text-lg">{strength}</p>
                 </div>
                 <div className="rounded-2xl border border-border bg-card/70 p-4">
                   <span className="text-xs uppercase tracking-wide text-muted-foreground">Скрытая потребность</span>
-                  <p className="mt-1 font-display text-lg">Быть услышанным</p>
+                  <p className="mt-1 font-display text-lg">{need}</p>
                 </div>
               </div>
 
@@ -255,7 +329,8 @@ const Index = () => {
               </Button>
             </div>
           </section>
-        )}
+          );
+        })()}
 
         {/* TASK */}
         {view === 'task' && (
@@ -267,7 +342,8 @@ const Index = () => {
                 <Icon name="GlassWater" size={30} className="text-accent" />
               </div>
               <p className="mt-6 font-display text-2xl leading-snug md:text-3xl">
-                Выпей стакан воды и 30 секунд поблагодари своё тело за то, что оно делает для тебя.
+                {character?.task ||
+                  'Выпей стакан воды и 30 секунд поблагодари своё тело за то, что оно делает для тебя.'}
               </p>
               <Button
                 size="lg"
@@ -285,7 +361,7 @@ const Index = () => {
               </Button>
               {taskDone && (
                 <p className="animate-fade-in mt-6 text-muted-foreground">
-                  Альмар стал чуть ярче. Возвращайся завтра — путь продолжится.
+                  {character?.name || 'Альмар'} стал чуть ярче. Возвращайся завтра — путь продолжится.
                 </p>
               )}
             </div>
