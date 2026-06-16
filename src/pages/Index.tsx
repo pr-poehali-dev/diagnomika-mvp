@@ -129,12 +129,15 @@ const Index = () => {
       }
       setSessionToken(token);
       const data = await loadProfile(token);
-      if (!data || data.error) {
+
+      // Токен невалидный или нет email — сбрасываем, идём на логин
+      if (!data || data.error || !data.email) {
         localStorage.removeItem('diagnomika_token');
         setView('login');
         return;
       }
-      if (data.email) setUserEmail(data.email);
+
+      setUserEmail(data.email);
       if (data.character) {
         setCharacter({ ...data.character, task: data.today_task?.task_text || '' });
         setTodayTask(data.today_task);
