@@ -10,9 +10,21 @@
       "name": "Create new user",
       "method": "POST",
       "path": "/",
-      "expectedStatus": 200,
-      "expectedBody": { "session_token": "string" },
-      "bodyMatcher": "partial"
+      "expectedStatus": 200
+    },
+    {
+      "name": "Send without email returns 400",
+      "method": "POST",
+      "path": "/send",
+      "body": {},
+      "expectedStatus": 400
+    },
+    {
+      "name": "Verify without code returns 400",
+      "method": "POST",
+      "path": "/verify",
+      "body": {"email": "test@example.com"},
+      "expectedStatus": 400
     }
   ]
 }

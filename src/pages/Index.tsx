@@ -78,7 +78,7 @@ const DEMO_STATES = [
   { name: 'Тело', icon: 'Activity',  value: 'Хочет движения',      level: 72 },
 ];
 
-type View = 'init' | 'home' | 'interview' | 'loading' | 'profile' | 'task' | 'journey' | 'contacts';
+type View = 'init' | 'login' | 'home' | 'interview' | 'loading' | 'profile' | 'task' | 'journey' | 'contacts';
 
 const Index = () => {
   const [view,      setView]      = useState<View>('init');
@@ -103,39 +103,113 @@ const Index = () => {
 
   /* Happy уходит после того как представил персонажа */
   const [happySaid,    setHappySaid]    = useState(false);
+  const [userEmail,    setUserEmail]    = useState('');
 
-  /* ── Инициализация: сессия и загрузка профиля ── */
+  /* auth state */
+  const [authEmail,    setAuthEmail]    = useState('');
+  const [authCode,     setAuthCode]     = useState('');
+  const [authStep,     setAuthStep]     = useState<'email' | 'code'>('email');
+  const [authLoading,  setAuthLoading]  = useState(false);
+  const [authError,    setAuthError]    = useState('');
+
+  /* ── Загрузка профиля по токену ── */
+  const loadProfile = async (token: string) => {
+    const res = await fetch(API_PROFILE, { headers: { 'X-Session-Token': token } });
+    if (!res.ok) return null;
+    return res.json();
+  };
+
+  /* ── Инициализация ── */
   useEffect(() => {
     const init = async () => {
-      let token = localStorage.getItem('diagnomika_token');
-
+      const token = localStorage.getItem('diagnomika_token');
       if (!token) {
-        const res = await fetch(API_PROFILE, { method: 'POST' });
-        const data = await res.json();
-        token = data.session_token as string;
-        localStorage.setItem('diagnomika_token', token);
+        setView('login');
+        return;
       }
-
       setSessionToken(token);
-
-      const res = await fetch(API_PROFILE, {
-        headers: { 'X-Session-Token': token },
-      });
-      const data = await res.json();
-
+      const data = await loadProfile(token);
+      if (!data || data.error) {
+        localStorage.removeItem('diagnomika_token');
+        setView('login');
+        return;
+      }
+      if (data.email) setUserEmail(data.email);
       if (data.character) {
         setCharacter({ ...data.character, task: data.today_task?.task_text || '' });
         setTodayTask(data.today_task);
         setTaskDone(data.today_task?.completed ?? false);
         setJourney(data.journey || []);
-        setView('home');
-      } else {
-        setView('home');
       }
+      setView('home');
     };
-
-    init().catch(() => setView('home'));
+    init().catch(() => setView('login'));
   }, []);
+
+  /* ── Отправить код ── */
+  const sendCode = async () => {
+    setAuthError('');
+    setAuthLoading(true);
+    try {
+      const res = await fetch(`${API_PROFILE}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: authEmail.trim().toLowerCase() }),
+      });
+      if (!res.ok) throw new Error('bad email');
+      setAuthStep('code');
+    } catch {
+      setAuthError('Не удалось отправить код. Проверь email и попробуй снова.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  /* ── Проверить код ── */
+  const verifyCode = async () => {
+    setAuthError('');
+    setAuthLoading(true);
+    try {
+      const res = await fetch(`${API_PROFILE}/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: authEmail.trim().toLowerCase(), code: authCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.session_token) throw new Error('invalid code');
+
+      localStorage.setItem('diagnomika_token', data.session_token);
+      setSessionToken(data.session_token);
+      setUserEmail(authEmail.trim().toLowerCase());
+
+      const profile = await loadProfile(data.session_token);
+      if (profile?.character) {
+        setCharacter({ ...profile.character, task: profile.today_task?.task_text || '' });
+        setTodayTask(profile.today_task);
+        setTaskDone(profile.today_task?.completed ?? false);
+        setJourney(profile.journey || []);
+      }
+      setView('home');
+    } catch {
+      setAuthError('Неверный или устаревший код. Попробуй получить новый.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem('diagnomika_token');
+    setSessionToken(null);
+    setCharacter(null);
+    setTodayTask(null);
+    setJourney([]);
+    setUserEmail('');
+    setAuthEmail('');
+    setAuthCode('');
+    setAuthStep('email');
+    setAuthError('');
+    setView('login');
+  };
 
   /* Story auto-play */
   useEffect(() => {
@@ -288,6 +362,100 @@ const Index = () => {
     );
   }
 
+  /* ── Экран входа ── */
+  if (view === 'login') {
+    return (
+      <div className="relative min-h-screen bg-background grain flex items-center justify-center px-4">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-32 left-1/2 -translate-x-1/2 h-[500px] w-[500px] rounded-full bg-accent/10 blur-[120px]" />
+        </div>
+
+        <div className="relative w-full max-w-sm animate-fade-in">
+          {/* Лого */}
+          <div className="mb-8 text-center">
+            <img src={HAPPY_IMG} alt="Happy" className="mx-auto h-16 w-16 object-contain drop-shadow-md mb-4" />
+            <h1 className="font-display text-3xl font-semibold">Диагномика</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Путь к себе начинается здесь</p>
+          </div>
+
+          <div className="rounded-[2rem] border border-border bg-card/80 p-8 shadow-xl backdrop-blur-sm">
+            {authStep === 'email' ? (
+              <>
+                <h2 className="font-display text-xl font-semibold mb-1">Войти или создать аккаунт</h2>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Введи свой email — мы пришлём код. Никаких паролей.
+                </p>
+                <div className="space-y-3">
+                  <input
+                    type="email"
+                    value={authEmail}
+                    onChange={e => setAuthEmail(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && authEmail.includes('@') && sendCode()}
+                    placeholder="твой@email.com"
+                    className="w-full rounded-2xl border border-border bg-background/60 px-4 py-3 text-base outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                    autoFocus
+                  />
+                  {authError && <p className="text-sm text-red-500">{authError}</p>}
+                  <Button
+                    size="lg"
+                    className="w-full rounded-full text-base"
+                    disabled={!authEmail.includes('@') || authLoading}
+                    onClick={sendCode}
+                  >
+                    {authLoading
+                      ? <><Icon name="Loader" size={16} className="mr-2 animate-spin" /> Отправляем…</>
+                      : <>Получить код <Icon name="ArrowRight" size={16} className="ml-2" /></>}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="font-display text-xl font-semibold mb-1">Введи код из письма</h2>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Отправили 4-значный код на <span className="font-medium text-foreground">{authEmail}</span>
+                </p>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={authCode}
+                    onChange={e => setAuthCode(e.target.value.replace(/\D/g, ''))}
+                    onKeyDown={e => e.key === 'Enter' && authCode.length === 4 && verifyCode()}
+                    placeholder="• • • •"
+                    className="w-full rounded-2xl border border-border bg-background/60 px-4 py-3 text-center text-3xl font-mono tracking-[0.5em] outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                    autoFocus
+                  />
+                  {authError && <p className="text-sm text-red-500">{authError}</p>}
+                  <Button
+                    size="lg"
+                    className="w-full rounded-full text-base"
+                    disabled={authCode.length !== 4 || authLoading}
+                    onClick={verifyCode}
+                  >
+                    {authLoading
+                      ? <><Icon name="Loader" size={16} className="mr-2 animate-spin" /> Проверяем…</>
+                      : <>Войти <Icon name="LogIn" size={16} className="ml-2" /></>}
+                  </Button>
+                  <button
+                    className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => { setAuthStep('email'); setAuthCode(''); setAuthError(''); }}
+                  >
+                    ← Изменить email
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            Входя в Диагномику, ты сохраняешь своего персонажа<br />и историю на всех устройствах
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen bg-background grain">
       {/* ambient glow */}
@@ -316,6 +484,18 @@ const Index = () => {
               {n.label}
             </button>
           ))}
+          {userEmail && (
+            <div className="ml-2 flex items-center gap-2 border-l border-border pl-3">
+              <span className="text-xs text-muted-foreground truncate max-w-[140px]">{userEmail}</span>
+              <button
+                onClick={logout}
+                title="Выйти"
+                className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <Icon name="LogOut" size={15} />
+              </button>
+            </div>
+          )}
         </nav>
       </header>
 
@@ -890,6 +1070,15 @@ const Index = () => {
             <Icon name={n.icon} size={20} />
           </button>
         ))}
+        {userEmail && (
+          <button
+            onClick={logout}
+            title="Выйти"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Icon name="LogOut" size={20} />
+          </button>
+        )}
       </nav>
     </div>
   );
