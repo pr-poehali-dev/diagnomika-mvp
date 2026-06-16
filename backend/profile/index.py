@@ -1,10 +1,8 @@
 import json
 import os
 import random
-import smtplib
+import urllib.request
 import psycopg2
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from datetime import datetime, timezone
 
 
@@ -22,16 +20,8 @@ def get_conn():
 
 
 def send_code_email(to_email: str, code: str):
-    smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
-    smtp_port = int(os.environ.get('SMTP_PORT', '587'))
-    smtp_user = os.environ['SMTP_USER']
-    smtp_pass = os.environ['SMTP_PASS']
-    from_name = os.environ.get('SMTP_FROM_NAME', 'Диагномика')
-
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = f'{code} — твой код входа в Диагномику'
-    msg['From'] = f'{from_name} <{smtp_user}>'
-    msg['To'] = to_email
+    """Отправляет код через Resend API — бесплатно, без SMTP."""
+    api_key = os.environ['RESEND_API_KEY']
 
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
@@ -69,10 +59,24 @@ def send_code_email(to_email: str, code: str):
   </table>
 </body></html>"""
 
-    msg.attach(MIMEText(html, 'html', 'utf-8'))
-    with smtplib.SMTP(smtp_host, smtp_port) as s:
-        s.ehlo(); s.starttls(); s.login(smtp_user, smtp_pass)
-        s.sendmail(smtp_user, to_email, msg.as_bytes())
+    payload = json.dumps({
+        'from': 'Диагномика <onboarding@resend.dev>',
+        'to': [to_email],
+        'subject': f'{code} — твой код входа в Диагномику',
+        'html': html,
+    }).encode('utf-8')
+
+    req = urllib.request.Request(
+        'https://api.resend.com/emails',
+        data=payload,
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+        },
+        method='POST',
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        resp.read()
 
 
 def handle_send(body: dict) -> dict:
