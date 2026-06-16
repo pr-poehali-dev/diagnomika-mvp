@@ -143,9 +143,8 @@ def handler(event: dict, context) -> dict:
     if method == 'OPTIONS':
         return {'statusCode': 200, 'headers': {**CORS, 'Access-Control-Max-Age': '86400'}, 'body': ''}
 
-    path = (event.get('path') or '/').rstrip('/')
-    action = path.split('/')[-1]
     body = json.loads(event.get('body') or '{}')
+    action = body.get('action', '')
 
     if method == 'POST' and action == 'send':
         return handle_send(body)

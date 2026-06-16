@@ -154,10 +154,10 @@ const Index = () => {
     setAuthError('');
     setAuthLoading(true);
     try {
-      const res = await fetch(`${API_PROFILE}/send`, {
+      const res = await fetch(API_PROFILE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: authEmail.trim().toLowerCase() }),
+        body: JSON.stringify({ action: 'send', email: authEmail.trim().toLowerCase() }),
       });
       if (!res.ok) throw new Error('bad email');
       setAuthStep('code');
@@ -173,10 +173,10 @@ const Index = () => {
     setAuthError('');
     setAuthLoading(true);
     try {
-      const res = await fetch(`${API_PROFILE}/verify`, {
+      const res = await fetch(API_PROFILE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: authEmail.trim().toLowerCase(), code: authCode.trim() }),
+        body: JSON.stringify({ action: 'verify', email: authEmail.trim().toLowerCase(), code: authCode.trim() }),
       });
       const data = await res.json();
       if (!res.ok || !data.session_token) throw new Error('invalid code');

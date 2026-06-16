@@ -15,15 +15,15 @@
     {
       "name": "Send without email returns 400",
       "method": "POST",
-      "path": "/send",
-      "body": {},
+      "path": "/",
+      "body": {"action": "send"},
       "expectedStatus": 400
     },
     {
       "name": "Verify without code returns 400",
       "method": "POST",
-      "path": "/verify",
-      "body": {"email": "test@example.com"},
+      "path": "/",
+      "body": {"action": "verify", "email": "test@example.com"},
       "expectedStatus": 400
     }
   ]
